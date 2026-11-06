@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+supabase
+firebase-admin
+pdfplumber
+openai
+pydantic
+google-genai

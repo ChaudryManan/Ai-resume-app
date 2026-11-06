@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "894439553708",
+    "project_id": "ai-resume-650e4",
+    "storage_bucket": "ai-resume-650e4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:894439553708:android:86638186b6071853467d09",
+        "android_client_info": {
+          "package_name": "com.example.resume_screener"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjfcRAOHJ3oQ-4ynfr9k06S03jjbhTuUI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
