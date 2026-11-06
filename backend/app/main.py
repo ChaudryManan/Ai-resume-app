@@ -24,6 +24,7 @@ from app.services.gemini_service import (
     build_job_matching_chunks
 )
 from app.services.resume_embedding_service import chunk_resume_text
+from app.routers.job_embeddings import router as job_embeddings_router
 
 # --------------------------------------------------
 # 1. Environment variables
@@ -86,10 +87,19 @@ cors_origins = [
     if origin.strip()
 ]
 
-if cors_origins:
+# Flutter web uses a random localhost port, so localhost is allowed on any
+# port by default. Set ALLOW_LOCALHOST_CORS=false in production.
+allow_localhost = os.getenv("ALLOW_LOCALHOST_CORS", "true").lower() != "false"
+
+if cors_origins or allow_localhost:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
+        allow_origin_regex=(
+            r"^http://(localhost|127\.0\.0\.1)(:\d+)?$"
+            if allow_localhost
+            else None
+        ),
         allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=["Authorization", "Content-Type"],
@@ -97,6 +107,13 @@ if cors_origins:
 
 security = HTTPBearer()
 logger = logging.getLogger(__name__)
+logging.getLogger("uvicorn.error").info(
+    "CORS: explicit origins=%s, localhost any port=%s",
+    cors_origins,
+    allow_localhost,
+)
+
+app.include_router(job_embeddings_router)
 
 
 # --------------------------------------------------

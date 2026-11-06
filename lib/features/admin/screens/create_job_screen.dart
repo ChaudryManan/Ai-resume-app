@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import '../services/admin_service.dart';
+import '../services/job_embedding_service.dart';
 class CreateJobScreen extends StatefulWidget {
   const CreateJobScreen({super.key});
 
@@ -274,13 +275,32 @@ Future<void> createJob() async {
 
     clearForm();
 
+    // The job is already saved. Embedding failure must not undo that.
+        String? embeddingError;
+    try {
+      await JobEmbeddingService().generateJobEmbeddings(jobId);
+    } catch (e, stackTrace) {
+      embeddingError = e.toString();
+      debugPrint('[JobEmbedding] FAILED for job $jobId: $e');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Job created successfully! ID: $jobId'),
-        backgroundColor: Colors.green,
+        content: Text(
+          embeddingError == null
+              ? 'Job created and embedded successfully! ID: $jobId'
+              : 'Job created, but embedding failed: $embeddingError',
+        ),
+        backgroundColor:
+            embeddingError == null ? Colors.green : Colors.orange,
       ),
     );
-  } catch (e) {
+  } catch (e,stackTrace) {
+    debugPrint('[CreateJob] FAILED: $e');
+    debugPrintStack(stackTrace: stackTrace);
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
