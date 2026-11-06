@@ -10,9 +10,10 @@ from supabase import Client, create_client
 from app.services.gemini_service import (
     EMBEDDING_DIMENSIONS,
     EMBEDDING_MODEL,
+    build_job_matching_chunks,
     embed_resume_chunks,
 )
-from app.services.job_embedding_service import build_job_chunks
+from app.services.job_embedding_service import build_job_profile
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +80,21 @@ def embed_job(
         job = job_snapshot.to_dict() or {}
         job_ref.set({"embeddingStatus": "processing"}, merge=True)
 
-        # STEP 2: Build text chunks from the job fields
-        chunks = build_job_chunks(job)
+        # STEP 2: Convert the job into the same profile shape as a resume
+        # (CandidateProfile) and save it, like candidate_profiles/{uid}.
+        profile_data = build_job_profile(job).model_dump()
+
+        firestore.client().collection("job_profiles").document(job_id).set(
+            {
+                "job_id": job_id,
+                "profile": profile_data,
+                "profileBuiltAt": firestore.SERVER_TIMESTAMP,
+            },
+            merge=True,
+        )
+
+        # Build chunks with the SAME function used for resumes
+        chunks = build_job_matching_chunks(profile_data)
         if not chunks:
             raise HTTPException(
                 status_code=422,
@@ -122,9 +136,18 @@ def embed_job(
             "embedding_model": EMBEDDING_MODEL,
             "embedding_dimensions": EMBEDDING_DIMENSIONS,
             "chunks_stored": len(chunk_records),
+            "embedded_sections": [
+                chunk.split(":", 1)[0] for chunk in chunks
+            ],
         }
 
-    except HTTPException:
+    except HTTPException as error:
+        logger.warning(
+            "Job embedding rejected for job %s: %s %s",
+            job_id,
+            error.status_code,
+            error.detail,
+        )
         if job_ref is not None:
             _set_status(job_ref, "failed")
         raise
