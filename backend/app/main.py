@@ -21,6 +21,7 @@ from app.services.gemini_service import (
     EMBEDDING_MODEL,
     embed_resume_chunks,
     extract_candidate_profile,
+    build_job_matching_chunks
 )
 from app.services.resume_embedding_service import chunk_resume_text
 
@@ -293,6 +294,7 @@ def _set_embedding_status(resume_ref, status: str) -> None:
         )
 
 
+
 @app.post("/api/resumes/embed")
 def embed_resume(
     current_user: dict = Depends(get_current_user),
@@ -301,51 +303,87 @@ def embed_resume(
     resume_ref = None
 
     try:
-        candidate_resume_ref = db.collection("resumes").document(uid)
-        candidate_resume_snapshot = candidate_resume_ref.get()
-        if not candidate_resume_snapshot.exists:
+        # STEP 1: Get screened candidate profile
+        profile_ref = (
+            db.collection("candidate_profiles").document(uid)
+        )
+
+        profile_snapshot = profile_ref.get()
+
+        if not profile_snapshot.exists:
             raise HTTPException(
                 status_code=404,
-                detail="No resume found for this candidate.",
+                detail="Please screen your resume first.",
             )
 
-        resume_ref = candidate_resume_ref
-        resume_ref.set({"embeddingStatus": "processing"}, merge=True)
+        candidate_data = profile_snapshot.to_dict()
 
-        (
-            _,
-            resume_data,
-            storage_path,
-            total_pages,
-            extracted_text,
-        ) = _read_resume_text(uid)
+        profile = candidate_data.get("profile")
 
-        chunks = chunk_resume_text(extracted_text)
+        if not profile:
+            raise HTTPException(
+                status_code=422,
+                detail="Candidate profile is empty.",
+            )
+
+        # STEP 2: Get resume document
+        resume_ref = db.collection("resumes").document(uid)
+
+        resume_snapshot = resume_ref.get()
+
+        if not resume_snapshot.exists:
+            raise HTTPException(
+                status_code=404,
+                detail="Resume document not found.",
+            )
+
+        resume_ref.set(
+            {"embeddingStatus": "processing"},
+            merge=True,
+        )
+
+        # STEP 3: Build job-matching chunks
+        chunks = build_job_matching_chunks(profile)
+
         if not chunks:
             raise HTTPException(
                 status_code=422,
-                detail="No readable resume text was found to embed.",
+                detail="No job-relevant information found.",
             )
 
+        # STEP 4: Generate vectors
         vectors = embed_resume_chunks(chunks)
+
+        if len(vectors) != len(chunks):
+            raise ValueError(
+                "Number of embeddings does not match chunks."
+            )
+
+        # STEP 5: Prepare records for Supabase
         chunk_records = [
             {
                 "chunk_index": index,
                 "content": chunk,
                 "embedding": vector,
             }
-            for index, (chunk, vector) in enumerate(zip(chunks, vectors))
+            for index, (chunk, vector) in enumerate(
+                zip(chunks, vectors)
+            )
         ]
 
+        # STEP 6: Store vectors in Supabase
         supabase.rpc(
             "replace_resume_embeddings",
             {
                 "p_user_id": uid,
-                "p_resume_path": storage_path,
+                "p_resume_path": candidate_data.get(
+                    "resumeStoragePath"
+                ),
                 "p_chunks": chunk_records,
             },
         ).execute()
 
+        # STEP 7: Update Firestore status
         resume_ref.set(
             {
                 "embeddingStatus": "completed",
@@ -359,28 +397,37 @@ def embed_resume(
 
         return {
             "status": "success",
-            "message": "Resume embeddings generated and stored.",
+            "message": "Candidate job-matching embeddings generated.",
             "candidate_uid": uid,
-            "resume_file_name": resume_data.get("fileName"),
-            "total_pages": total_pages,
             "embedding_model": EMBEDDING_MODEL,
             "embedding_dimensions": EMBEDDING_DIMENSIONS,
             "chunks_stored": len(chunk_records),
+            "embedded_sections": [
+                "professional_profile",
+                "technical_skills",
+                "total_experience",
+                "work_experience",
+                "education",
+                "certifications",
+                "languages",
+                "projects",
+            ],
         }
+
     except HTTPException:
         if resume_ref is not None:
             _set_embedding_status(resume_ref, "failed")
         raise
+
     except Exception as error:
         if resume_ref is not None:
             _set_embedding_status(resume_ref, "failed")
 
-        logger.error(
-            "Resume embedding failed: %s",
-            type(error).__name__,
+        logger.exception(
+            "Candidate embedding failed for UID: %s", uid
         )
+
         raise HTTPException(
             status_code=500,
-            detail="An error occurred while generating resume embeddings.",
+            detail="Error generating candidate embeddings.",
         ) from error
-     
