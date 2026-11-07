@@ -1,7 +1,7 @@
 import copy
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 os.environ.setdefault("GEMINI_API_KEY", "test-key")
@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from firebase_admin import firestore
 
 from app.routers.job_embeddings import router as job_embeddings_router
+from app.routers.candidates import router as candidates_router
 from app.routers.matching import router as matching_router
 from app.services import matching_service as ms
 
@@ -124,6 +125,7 @@ def candidate(company, title, skills):
         "uid": "x", "resumeFileName": "cv.pdf",
         "profile": {
             "full_name": "Secret Name", "email": "secret@mail.com", "phone": "0300",
+            "professional_title": title,
             "technical_skills": skills,
             "work_experience": [{"company": company, "job_title": title,
                                  "start_date": "2021-03", "end_date": "2023-03",
@@ -159,6 +161,7 @@ class Env:
         self.db.store["candidate_profiles/B"] = candidate("AppWorks", "Flutter Dev", ["Flutter"])
         self.db.store["candidate_profiles/C"] = candidate("BrokenCo", "Dev", ["Python"])
         self.db.store["candidate_profiles/D"] = {"uid": "D", "screening_status": "pending"}  # no profile
+        self.db.store["resumes/A"] = {"storagePath": "A/123_cv.pdf", "bucket": "resumes", "fileName": "cv.pdf"}
         self.prompts, self.requirement_calls = [], 0
 
         async def generate(model, contents, config):
@@ -181,10 +184,13 @@ class Env:
         ]
         self.supabase = MagicMock()
         self.supabase.rpc.return_value = rpc
+        self.supabase.storage.from_.return_value.create_signed_url.return_value = {
+            "signedURL": "https://files.example/sign/abc", "signedUrl": "https://files.example/sign/abc"}
 
         app = FastAPI()
         app.include_router(job_embeddings_router)
         app.include_router(matching_router)
+        app.include_router(candidates_router)
         self.client = TestClient(app)
         self.headers = {"Authorization": "Bearer t"}
         self.uid = "admin1"
@@ -195,6 +201,7 @@ class Env:
             patch.object(ms, "_gemini", gemini),
             patch.object(ms, "get_supabase", return_value=self.supabase),
             patch("app.routers.job_embeddings._supabase", return_value=self.supabase),
+            patch("app.routers.candidates.get_supabase", return_value=self.supabase),
             patch("app.routers.job_embeddings.embed_resume_chunks",
                   side_effect=lambda chunks: [[0.1] * 768 for _ in chunks]),
         ]
@@ -309,3 +316,88 @@ def test_total_llm_failure_is_recorded_on_the_job():
         assert response.status_code == 500
         job = env.db.store["jobs/J1"]
         assert job["matchStatus"] == "failed" and "quota" in job["matchError"]
+
+
+# ---------- admin screen: eligibility, re-run button, resume link ----------
+def test_candidates_are_labelled_and_carry_contact_info():
+    with Env() as env:
+        data = env.client.post("/api/jobs/J1/match", headers=env.headers).json()
+        a, b = data["results"]
+        assert a["eligibility"] == "highly_eligible" and b["eligibility"] == "low_match"
+        assert (a["candidate_email"], a["candidate_title"]) == ("secret@mail.com", "ML Engineer")
+
+
+def test_background_rerun_returns_at_once_and_saves_the_new_ranking():
+    with Env() as env:
+        env.db.store["jobs/J1/matches/GONE"] = {"candidate_id": "GONE", "rank": 9}
+        response = env.client.post("/api/jobs/J1/match?background=true", headers=env.headers)
+        assert response.json() == {"status": "started", "job_id": "J1"}
+
+        job = env.db.store["jobs/J1"]
+        assert job["matchStatus"] == "completed" and job["matchStartedAt"]
+        assert "jobs/J1/matches/GONE" not in env.db.store
+        assert env.db.store["jobs/J1/matches/A"]["rank"] == 1
+
+
+def test_second_click_while_running_is_rejected_but_a_stale_run_is_not():
+    with Env() as env:
+        job = env.db.store["jobs/J1"]
+        job.update(matchStatus="processing", matchStartedAt=datetime.now(timezone.utc))
+        busy = env.client.post("/api/jobs/J1/match?background=true", headers=env.headers)
+        assert busy.status_code == 409
+
+        job["matchStartedAt"] = datetime.now(timezone.utc) - timedelta(minutes=11)  # crashed run
+        again = env.client.post("/api/jobs/J1/match?background=true", headers=env.headers)
+        assert again.status_code == 200 and env.db.store["jobs/J1"]["matchStatus"] == "completed"
+
+
+def test_background_rerun_of_unknown_job_is_404_and_creates_nothing():
+    with Env() as env:
+        response = env.client.post("/api/jobs/NOPE/match?background=true", headers=env.headers)
+        assert response.status_code == 404 and "jobs/NOPE" not in env.db.store
+
+
+def test_results_saved_before_this_feature_still_load_with_a_label():
+    with Env() as env:
+        env.db.store["jobs/J1/matches/OLD"] = {  # no eligibility/email/title fields
+            "candidate_id": "OLD", "overall_score": 66.0, "rank": 1,
+            "breakdown": {"skills": 60, "experience": 60, "title": 60, "education": 60, "impact": 60},
+            "scoredAt": datetime.now(timezone.utc),
+        }
+        data = env.client.get("/api/jobs/J1/matches", headers=env.headers).json()
+        assert data["results"][0]["eligibility"] == "potential" and data["results"][0]["rank"] == 1
+        assert data["thresholds"] == {"highly_eligible": 75, "potential": 60}
+        assert data["job_title"] == "AI Engineer"
+
+
+def test_admin_gets_a_resume_link():
+    with Env() as env:
+        data = env.client.get("/api/candidates/A/resume", headers=env.headers).json()
+        assert data == {"url": "https://files.example/sign/abc", "file_name": "cv.pdf", "expires_in": 600}
+        env.supabase.storage.from_.assert_called_with("resumes")
+        env.supabase.storage.from_.return_value.create_signed_url.assert_called_with("A/123_cv.pdf", 600)
+
+
+def test_resume_link_is_admin_only_and_validated():
+    with Env() as env:
+        env.uid = "user1"
+        assert env.client.get("/api/candidates/A/resume", headers=env.headers).status_code == 403
+
+        env.uid = "admin1"
+        assert env.client.get("/api/candidates/B/resume", headers=env.headers).status_code == 404  # no resume doc
+
+        env.db.store["resumes/B"] = {"storagePath": "SOMEONE_ELSE/x.pdf", "bucket": "resumes"}
+        assert env.client.get("/api/candidates/B/resume", headers=env.headers).status_code == 403
+
+        env.db.store["resumes/B"] = {"storagePath": "B/x.pdf", "bucket": "other"}
+        assert env.client.get("/api/candidates/B/resume", headers=env.headers).status_code == 400
+
+
+def test_resume_link_failures_are_clean_errors():
+    with Env() as env:
+        sign = env.supabase.storage.from_.return_value.create_signed_url
+        sign.return_value = {"signedURL": None, "signedUrl": None}
+        assert env.client.get("/api/candidates/A/resume", headers=env.headers).status_code == 404
+
+        sign.side_effect = RuntimeError("storage down")
+        assert env.client.get("/api/candidates/A/resume", headers=env.headers).status_code == 500

@@ -1,6 +1,10 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
+
+# Score bands shown to the admin.
+HIGHLY_ELIGIBLE_MIN = 75
+POTENTIAL_MIN = 60
 
 EducationLevel = Literal[
     "none", "high_school", "diploma", "bachelor", "master", "phd"
@@ -64,6 +68,8 @@ class ScoreBreakdown(BaseModel):
 class CandidateMatch(BaseModel):
     candidate_id: str
     candidate_name: str | None = None
+    candidate_email: str | None = None
+    candidate_title: str | None = None
     resume_file_name: str | None = None
     overall_score: float
     breakdown: ScoreBreakdown
@@ -78,6 +84,17 @@ class CandidateMatch(BaseModel):
     summary: str = ""
     knocked_out: bool = False
     knockout_reason: str | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def eligibility(self) -> Literal["highly_eligible", "potential", "low_match"]:
+        if self.knocked_out:
+            return "low_match"
+        if self.overall_score >= HIGHLY_ELIGIBLE_MIN:
+            return "highly_eligible"
+        if self.overall_score >= POTENTIAL_MIN:
+            return "potential"
+        return "low_match"
 
 
 class MatchResponse(BaseModel):

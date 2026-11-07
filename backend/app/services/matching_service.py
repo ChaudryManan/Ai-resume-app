@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import re
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from firebase_admin import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -74,6 +74,14 @@ EDU_RANK = {
 
 class JobNotFoundError(ValueError):
     pass
+
+
+class MatchAlreadyRunningError(RuntimeError):
+    pass
+
+
+# A run that never finished (server restarted) must not block re-running forever.
+MATCH_STALE_AFTER = timedelta(minutes=10)
 
 
 def _clamp(value: float, low: float, high: float) -> float:
@@ -533,6 +541,8 @@ async def match_job(
             CandidateMatch(
                 candidate_id=uid,
                 candidate_name=profile.get("full_name"),
+                candidate_email=profile.get("email"),
+                candidate_title=profile.get("professional_title"),
                 resume_file_name=item["file"],
                 overall_score=round(overall, 1),
                 breakdown=breakdown,
@@ -580,6 +590,29 @@ def _set_match_status(job_id: str, status: str, **extra) -> None:
         log.error("Could not save matchStatus for job %s: %s", job_id, type(error).__name__)
 
 
+def start_job_matching(job_id: str) -> None:
+    """
+    Called before a background run: validates the job and marks it 'processing'
+    right away, so the admin screen shows progress on its very next refresh.
+    """
+    snapshot = firestore.client().collection("jobs").document(job_id).get()
+    if not snapshot.exists:
+        raise JobNotFoundError("Job not found")
+
+    job = snapshot.to_dict() or {}
+    started = job.get("matchStartedAt")
+
+    if job.get("matchStatus") == "processing" and started:
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) - started < MATCH_STALE_AFTER:
+            raise MatchAlreadyRunningError("Matching is already running")
+
+    _set_match_status(
+        job_id, "processing", matchError=None, matchStartedAt=firestore.SERVER_TIMESTAMP
+    )
+
+
 async def run_job_matching(
     job_id: str, top_n: int = 20, applicants_only: bool = False
 ) -> MatchResponse:
@@ -588,7 +621,9 @@ async def run_job_matching(
     if not firestore.client().collection("jobs").document(job_id).get().exists:
         raise JobNotFoundError("Job not found")
 
-    _set_match_status(job_id, "processing", matchError=None)
+    _set_match_status(
+        job_id, "processing", matchError=None, matchStartedAt=firestore.SERVER_TIMESTAMP
+    )
 
     try:
         response = await match_job(job_id, top_n=top_n, applicants_only=applicants_only)
@@ -608,10 +643,10 @@ async def run_job_matching(
     return response
 
 
-async def run_matching_in_background(job_id: str) -> None:
-    """Used right after a job is created. Never raises: the job is already saved."""
+async def run_matching_in_background(job_id: str, applicants_only: bool = False) -> None:
+    """Used after a job is created and by the admin 're-run' button. Never raises."""
     try:
-        await run_job_matching(job_id)
+        await run_job_matching(job_id, applicants_only=applicants_only)
         log.info("Matching finished for job %s", job_id)
     except Exception:
         log.exception("Background matching failed for job %s", job_id)

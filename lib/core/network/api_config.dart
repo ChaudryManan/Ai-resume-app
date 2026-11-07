@@ -26,4 +26,16 @@ class ApiConfig {
 
   static Uri jobEmbeddingEndpoint(String jobId) =>
       _resolve('/api/jobs/${Uri.encodeComponent(jobId)}/embed');
+
+  static Uri jobMatchesEndpoint(String jobId) =>
+      _resolve('/api/jobs/${Uri.encodeComponent(jobId)}/matches')
+          .replace(queryParameters: {'limit': '100'});
+
+  // background=true: the server answers at once and keeps matching.
+  static Uri jobMatchEndpoint(String jobId) =>
+      _resolve('/api/jobs/${Uri.encodeComponent(jobId)}/match')
+          .replace(queryParameters: {'background': 'true'});
+
+  static Uri candidateResumeEndpoint(String uid) =>
+      _resolve('/api/candidates/${Uri.encodeComponent(uid)}/resume');
 }
