@@ -4,7 +4,7 @@ class ApiConfig {
     defaultValue: '',
   );
 
-  static Uri get resumeEmbeddingEndpoint {
+  static Uri _resolve(String path) {
     if (baseUrl.isEmpty) {
       throw StateError(
         'API_BASE_URL is not configured. Start the backend and pass '
@@ -17,22 +17,13 @@ class ApiConfig {
       throw StateError('API_BASE_URL must be an absolute HTTP or HTTPS URL.');
     }
 
-    return uri.resolve('/api/resumes/embed');
+    return uri.resolve(path);
   }
 
-  static Uri jobEmbeddingEndpoint(String jobId) {
-    if (baseUrl.isEmpty) {
-      throw StateError(
-        'API_BASE_URL is not configured. Start the backend and pass '
-        '--dart-define=API_BASE_URL=<backend-url> to Flutter.',
-      );
-    }
+  static Uri get resumeScreenEndpoint => _resolve('/api/resumes/screen');
 
-    final uri = Uri.parse(baseUrl);
-    if ((uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
-      throw StateError('API_BASE_URL must be an absolute HTTP or HTTPS URL.');
-    }
+  static Uri get resumeEmbeddingEndpoint => _resolve('/api/resumes/embed');
 
-    return uri.resolve('/api/jobs/${Uri.encodeComponent(jobId)}/embed');
-  }
+  static Uri jobEmbeddingEndpoint(String jobId) =>
+      _resolve('/api/jobs/${Uri.encodeComponent(jobId)}/embed');
 }

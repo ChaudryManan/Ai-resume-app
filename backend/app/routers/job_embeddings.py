@@ -1,11 +1,7 @@
 import logging
-import os
-from functools import lru_cache
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from firebase_admin import auth, firestore
-from supabase import Client, create_client
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from firebase_admin import firestore
 
 from app.services.gemini_service import (
     EMBEDDING_DIMENSIONS,
@@ -13,42 +9,14 @@ from app.services.gemini_service import (
     build_job_matching_chunks,
     embed_resume_chunks,
 )
+from app.dependencies.auth import require_admin
 from app.services.job_embedding_service import build_job_profile
+from app.services.matching_service import run_matching_in_background
+from app.services.supabase_client import get_supabase as _supabase
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["jobs"])
-bearer = HTTPBearer()
-
-
-@lru_cache(maxsize=1)
-def _supabase() -> Client:
-    return create_client(
-        os.environ["SUPABASE_URL"],
-        os.environ["SUPABASE_SECRET_KEY"],
-    )
-
-
-def _require_admin(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer),
-) -> dict:
-    try:
-        decoded = auth.verify_id_token(credentials.credentials)
-    except Exception:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired Firebase token.",
-        )
-
-    snapshot = (
-        firestore.client().collection("users").document(decoded["uid"]).get()
-    )
-    role = (snapshot.to_dict() or {}).get("role") if snapshot.exists else None
-
-    if role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required.")
-
-    return decoded
 
 
 def _set_status(job_ref, status: str) -> None:
@@ -64,7 +32,9 @@ def _set_status(job_ref, status: str) -> None:
 @router.post("/api/jobs/{job_id}/embed")
 def embed_job(
     job_id: str,
-    admin: dict = Depends(_require_admin),
+    background_tasks: BackgroundTasks,
+    match: bool = True,
+    admin: dict = Depends(require_admin),
 ):
     job_ref = None
 
@@ -129,9 +99,14 @@ def embed_job(
             merge=True,
         )
 
+        # STEP 6: Match the new job with all screened resumes in the background
+        if match:
+            background_tasks.add_task(run_matching_in_background, job_id)
+
         return {
             "status": "success",
             "message": "Job embeddings generated.",
+            "matching": "started" if match else "skipped",
             "job_id": job_id,
             "embedding_model": EMBEDDING_MODEL,
             "embedding_dimensions": EMBEDDING_DIMENSIONS,

@@ -103,13 +103,13 @@ class _UserDashboardState extends State<UserDashboard> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Resume uploaded. Generating search embeddings...'),
+          content: Text('Resume uploaded. Analysing it with AI, this can take up to a minute...'),
         ),
       );
 
       try {
         final chunksStored = await ResumeProcessingService()
-            .generateResumeEmbeddings();
+            .processResume();
 
         if (!mounted) return;
 
@@ -122,14 +122,14 @@ class _UserDashboardState extends State<UserDashboard> {
           ),
         );
       } catch (processingError) {
-        debugPrint('RESUME EMBEDDING ERROR: $processingError');
+        debugPrint('RESUME PROCESSING ERROR: $processingError');
 
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Resume uploaded, but embedding failed: $processingError',
+              'Resume uploaded, but processing failed: $processingError',
             ),
             backgroundColor: Colors.red,
           ),

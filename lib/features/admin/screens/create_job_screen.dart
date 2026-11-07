@@ -291,7 +291,7 @@ Future<void> createJob() async {
       SnackBar(
         content: Text(
           embeddingError == null
-              ? 'Job created and embedded successfully! ID: $jobId'
+              ? 'Job created. Matching with candidate resumes has started. ID: $jobId'
               : 'Job created, but embedding failed: $embeddingError',
         ),
         backgroundColor:
