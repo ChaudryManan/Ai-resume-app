@@ -295,45 +295,62 @@ class _OverviewScreenState extends State<OverviewScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        FilledButton.icon(
+                    // Both buttons share one size and alignment: stacked and
+                    // full width on phones, side by side on larger screens.
+                    Builder(
+                      builder: (_) {
+                        final buttonSize = Size(
+                          isPhone ? double.infinity : 190,
+                          48,
+                        );
+
+                        final createButton = FilledButton.icon(
                           onPressed: () => _open(1),
                           icon: const Icon(Icons.add_rounded, size: 19),
                           label: const Text('Create new job'),
                           style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFF8FA5FF),
                             foregroundColor: _navy,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 14,
-                            ),
+                            minimumSize: buttonSize,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                        ),
-                        OutlinedButton.icon(
+                        );
+
+                        final viewButton = OutlinedButton.icon(
                           onPressed: () => _open(3),
                           icon: const Icon(Icons.people_outline, size: 18),
                           label: const Text('View candidates'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
+                            minimumSize: buttonSize,
                             side: BorderSide(
                               color: Colors.white.withValues(alpha: 0.4),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                        ),
-                      ],
+                        );
+
+                        if (isPhone) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              createButton,
+                              const SizedBox(height: 10),
+                              viewButton,
+                            ],
+                          );
+                        }
+
+                        return Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [createButton, viewButton],
+                        );
+                      },
                     ),
                   ],
                 ),

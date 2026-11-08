@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../widgets/auth_layout.dart';
 import '../widgets/auth_page_shell.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_text_field.dart';
@@ -94,6 +95,7 @@ Future<void> _signup() async {
   @override
   Widget build(BuildContext context) {
     final narrow = MediaQuery.sizeOf(context).width < 380;
+    final tight = authIsTight(context);
 
     return AuthPageShell(
       child: AuthCard(
@@ -135,23 +137,23 @@ Future<void> _signup() async {
                   const SizedBox(width: 44),
                 ],
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: tight ? 10 : 24),
               Center(
                 child: Container(
-                  width: 58,
-                  height: 58,
+                  width: tight ? 44 : 58,
+                  height: tight ? 44 : 58,
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.person_add_alt_1_rounded,
                     color: AppTheme.primary,
-                    size: 29,
+                    size: tight ? 23 : 29,
                   ),
                 ),
               ),
-              const SizedBox(height: 17),
+              SizedBox(height: tight ? 10 : 17),
               Text(
                 'Start hiring smarter',
                 textAlign: TextAlign.center,
@@ -162,17 +164,20 @@ Future<void> _signup() async {
                   letterSpacing: -0.7,
                 ),
               ),
-              const SizedBox(height: 7),
-              const Text(
-                'Create your account and turn resumes into confident decisions.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textMuted,
-                  fontSize: 13.5,
-                  height: 1.45,
+              // The subtitle is hidden on short phones to save space.
+              if (!tight) ...[
+                const SizedBox(height: 7),
+                const Text(
+                  'Create your account and turn resumes into confident decisions.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 13.5,
+                    height: 1.45,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 27),
+              ],
+              SizedBox(height: tight ? 14 : 27),
               AuthTextField(
                 controller: _nameController,
                 label: 'Full name',
@@ -187,7 +192,7 @@ Future<void> _signup() async {
                   return null;
                 },
               ),
-              const SizedBox(height: 17),
+              SizedBox(height: tight ? 12 : 17),
               AuthTextField(
                 controller: _emailController,
                 label: 'Work email',
@@ -207,7 +212,7 @@ Future<void> _signup() async {
                   return null;
                 },
               ),
-              const SizedBox(height: 17),
+              SizedBox(height: tight ? 12 : 17),
               AuthTextField(
                 controller: _passwordController,
                 label: 'Password',
@@ -235,7 +240,7 @@ Future<void> _signup() async {
                   return null;
                 },
               ),
-              const SizedBox(height: 17),
+              SizedBox(height: tight ? 12 : 17),
               AuthTextField(
                 controller: _confirmPasswordController,
                 label: 'Confirm password',
@@ -268,14 +273,14 @@ Future<void> _signup() async {
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: tight ? 16 : 24),
               AuthPrimaryButton(
                 label: 'Create account',
                 icon: Icons.arrow_forward_rounded,
                 isLoading: _loading,
                 onPressed: _signup,
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: tight ? 6 : 20),
               Wrap(
                 alignment: WrapAlignment.center,
                 crossAxisAlignment: WrapCrossAlignment.center,

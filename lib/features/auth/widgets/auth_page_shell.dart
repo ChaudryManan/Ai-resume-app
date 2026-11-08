@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import 'auth_layout.dart';
 
 class AuthPageShell extends StatelessWidget {
   final Widget child;
@@ -19,8 +20,9 @@ class AuthPageShell extends StatelessWidget {
               builder: (context, constraints) {
                 // Phones get a little less outer padding so the card is wider.
                 final phone = constraints.maxWidth < 600;
+                final tight = authIsTight(context);
                 final h = phone ? 16.0 : 20.0;
-                final v = phone ? 16.0 : 24.0;
+                final v = tight ? 12.0 : (phone ? 16.0 : 24.0);
 
                 return SingleChildScrollView(
                   keyboardDismissBehavior:
@@ -100,11 +102,15 @@ class AuthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final narrow = MediaQuery.sizeOf(context).width < 380;
+    final tight = authIsTight(context);
+    final sideInset = narrow ? 18.0 : 24.0;
 
     return Container(
-      padding: narrow
-          ? const EdgeInsets.fromLTRB(18, 24, 18, 20)
-          : const EdgeInsets.fromLTRB(24, 28, 24, 24),
+      padding: tight
+          ? EdgeInsets.fromLTRB(sideInset, 18, sideInset, 16)
+          : (narrow
+              ? const EdgeInsets.fromLTRB(18, 24, 18, 20)
+              : const EdgeInsets.fromLTRB(24, 28, 24, 24)),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(narrow ? 24 : 28),
@@ -128,7 +134,8 @@ class AuthBrand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final narrow = MediaQuery.sizeOf(context).width < 380;
-    final logo = narrow ? 52.0 : 58.0;
+    final tight = authIsTight(context);
+    final logo = tight ? 46.0 : (narrow ? 52.0 : 58.0);
 
     return Column(
       children: [
@@ -150,13 +157,13 @@ class AuthBrand extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(
+          child: Icon(
             Icons.auto_awesome_rounded,
             color: Colors.white,
-            size: 29,
+            size: tight ? 24 : 29,
           ),
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: tight ? 10 : 14),
         const Text(
           'ResumeIQ',
           style: TextStyle(

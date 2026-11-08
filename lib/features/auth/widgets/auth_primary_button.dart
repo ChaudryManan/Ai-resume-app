@@ -7,7 +7,7 @@ class AuthPrimaryButton extends StatelessWidget {
   final VoidCallback onPressed;
   final IconData? icon;
 
-  /// Shows a spinner and ignores taps while a request is running.
+  /// Shows a spinner and ignores taps (stops double submits).
   final bool isLoading;
 
   const AuthPrimaryButton({
@@ -43,8 +43,6 @@ class AuthPrimaryButton extends StatelessWidget {
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
-            disabledBackgroundColor: Colors.transparent,
-            disabledForegroundColor: Colors.white,
             shadowColor: Colors.transparent,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
@@ -63,15 +61,11 @@ class AuthPrimaryButton extends StatelessWidget {
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     if (icon != null) ...[

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AuthTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -9,16 +10,17 @@ class AuthTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final TextInputType keyboardType;
   final FormFieldValidator<String>? validator;
-
-  /// Keyboard action key (Next / Done) and what Enter does.
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onFieldSubmitted;
-
-  /// Lets the phone's password manager offer to fill this field.
+  final ValueChanged<String>? onChanged;
   final Iterable<String>? autofillHints;
-
-  /// Turn off for email and password so the keyboard does not "correct" them.
+  final TextCapitalization textCapitalization;
   final bool autocorrect;
+  final bool enableSuggestions;
+  final bool enabled;
+  final int maxLines;
+  final FocusNode? focusNode;
+  final List<TextInputFormatter>? inputFormatters;
 
   const AuthTextField({
     super.key,
@@ -32,8 +34,15 @@ class AuthTextField extends StatelessWidget {
     this.validator,
     this.textInputAction,
     this.onFieldSubmitted,
+    this.onChanged,
     this.autofillHints,
+    this.textCapitalization = TextCapitalization.none,
     this.autocorrect = true,
+    this.enableSuggestions = true,
+    this.enabled = true,
+    this.maxLines = 1,
+    this.focusNode,
+    this.inputFormatters,
   });
 
   @override
@@ -52,14 +61,20 @@ class AuthTextField extends StatelessWidget {
         const SizedBox(height: 7),
         TextFormField(
           controller: controller,
+          focusNode: focusNode,
           obscureText: obscureText,
           keyboardType: keyboardType,
-          validator: validator,
           textInputAction: textInputAction,
-          onFieldSubmitted: onFieldSubmitted,
-          autofillHints: autofillHints,
+          textCapitalization: textCapitalization,
           autocorrect: autocorrect,
-          enableSuggestions: autocorrect,
+          enableSuggestions: enableSuggestions,
+          autofillHints: autofillHints,
+          inputFormatters: inputFormatters,
+          enabled: enabled,
+          maxLines: maxLines,
+          onChanged: onChanged,
+          onFieldSubmitted: onFieldSubmitted,
+          validator: validator,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFF94A3B8)),

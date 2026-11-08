@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../widgets/auth_page_shell.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_text_field.dart';
+import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/services/auth_service.dart';
@@ -21,7 +22,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _hidePassword = true;
   bool _rememberMe = true;
-  bool _loading = false;
 
   @override
   void dispose() {
@@ -32,14 +32,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
  
 Future<void> _login() async {
-  if (_loading) return;
-
   if (!_formKey.currentState!.validate()) {
     return;
   }
-
-  FocusScope.of(context).unfocus();
-  setState(() => _loading = true);
 
   try {
     await AuthService().login(
@@ -87,31 +82,25 @@ Future<void> _login() async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('An error occurred: $e')),
     );
-  } finally {
-    // On success AuthWrapper replaces this screen, so check mounted.
-    if (mounted) setState(() => _loading = false);
   }
 }
 
   @override
   Widget build(BuildContext context) {
-    final narrow = MediaQuery.sizeOf(context).width < 380;
-
     return AuthPageShell(
       child: AuthCard(
-        child: AutofillGroup(
-         child: Form(
+        child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const AuthBrand(),
-              SizedBox(height: narrow ? 26 : 34),
-              Text(
+              const SizedBox(height: 34),
+              const Text(
                 'Welcome back',
                 style: TextStyle(
                   color: AppTheme.ink,
-                  fontSize: narrow ? 24 : 27,
+                  fontSize: 27,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.7,
                 ),
@@ -125,16 +114,13 @@ Future<void> _login() async {
                   height: 1.45,
                 ),
               ),
-              SizedBox(height: narrow ? 22 : 28),
+              const SizedBox(height: 28),
               AuthTextField(
                 controller: _emailController,
                 label: 'Work email',
                 hint: 'name@company.com',
                 prefixIcon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.email],
-                autocorrect: false,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter your email';
@@ -154,10 +140,6 @@ Future<void> _login() async {
                 hint: 'Enter your password',
                 prefixIcon: Icons.lock_outline_rounded,
                 obscureText: _hidePassword,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.password],
-                autocorrect: false,
-                onFieldSubmitted: (_) => _login(),
                 suffixIcon: IconButton(
                   tooltip: _hidePassword ? 'Show password' : 'Hide password',
                   onPressed: () =>
@@ -176,79 +158,58 @@ Future<void> _login() async {
                   return null;
                 },
               ),
-              const SizedBox(height: 8),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final remember = Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Transform.translate(
-                        offset: const Offset(-7, 0),
-                        child: Checkbox(
-                          value: _rememberMe,
-                          activeColor: AppTheme.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          onChanged: (value) =>
-                              setState(() => _rememberMe = value ?? false),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ForgotPasswordScreen(
+                          initialEmail: _emailController.text.trim(),
                         ),
                       ),
-                      Transform.translate(
-                        offset: const Offset(-7, 0),
-                        child: const Text(
-                          'Keep me signed in',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textMuted,
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-
-                  final forgot = TextButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Password recovery will be added next.',
-                          ),
-                        ),
-                      );
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.primary,
-                      minimumSize: const Size(48, 44),
-                    ),
-                    child: const Text(
-                      'Forgot password?',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  );
-
-                  // Not enough room for both on one line (small phones).
-                  if (constraints.maxWidth < 300) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        remember,
-                        Align(alignment: Alignment.centerRight, child: forgot),
-                      ],
                     );
-                  }
-
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [remember, forgot],
-                  );
-                },
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 8,
+                    ),
+                  ),
+                  child: const Text(
+                    'Forgot password?',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Transform.translate(
+                    offset: const Offset(-7, 0),
+                    child: Checkbox(
+                      value: _rememberMe,
+                      activeColor: AppTheme.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      onChanged: (value) =>
+                          setState(() => _rememberMe = value ?? false),
+                    ),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Keep me signed in',
+                      style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 19),
               AuthPrimaryButton(
                 label: 'Sign in to dashboard',
                 icon: Icons.arrow_forward_rounded,
-                isLoading: _loading,
                 onPressed: _login,
               ),
               const SizedBox(height: 27),
@@ -299,7 +260,6 @@ Future<void> _login() async {
               ),
             ],
           ),
-         ),
         ),
       ),
     );
