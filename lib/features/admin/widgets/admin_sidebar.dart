@@ -5,10 +5,14 @@ class AdminSidebar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
 
+  /// Icon-only rail for tablets.
+  final bool compact;
+
   const AdminSidebar({
     super.key,
     required this.selectedIndex,
     required this.onItemSelected,
+    this.compact = false,
   });
 
   static const Color navy = Color(0xFF172554);
@@ -33,8 +37,68 @@ class AdminSidebar extends StatelessWidget {
     'Settings',
   ];
 
+  Widget _buildCompact() {
+    return Container(
+      width: 78,
+      height: double.infinity,
+      color: navy,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 24),
+      child: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(bottom: 34),
+            child: Icon(Icons.work_outline, color: Color(0xFF8FA5FF), size: 30),
+          ),
+          ...List.generate(labels.length, (index) {
+            final isSelected = selectedIndex == index;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Tooltip(
+                message: labels[index],
+                child: Material(
+                  color: isSelected ? selectedColor : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => onItemSelected(index),
+                    child: SizedBox(
+                      height: 50,
+                      width: double.infinity,
+                      child: Icon(
+                        icons[index],
+                        size: 22,
+                        color: isSelected ? Colors.white : mutedColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+          const Spacer(),
+          const Divider(color: Color(0xFF35456E)),
+          Tooltip(
+            message: 'Logout',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => onItemSelected(6),
+              child: const SizedBox(
+                height: 50,
+                width: double.infinity,
+                child: Icon(Icons.logout, color: Color(0xFFFFA3A3), size: 21),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (compact) return _buildCompact();
+
     return Container(
       width: 235,
       height: double.infinity,
