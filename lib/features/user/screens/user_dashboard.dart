@@ -25,6 +25,9 @@ class _UserDashboardState extends State<UserDashboard> {
 
   String searchQuery = '';
 
+  // True while the resume is uploading / being analysed.
+  bool _uploading = false;
+
   @override
   void initState() {
     super.initState();
@@ -90,6 +93,8 @@ class _UserDashboardState extends State<UserDashboard> {
         return;
       }
 
+      setState(() => _uploading = true);
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Uploading your resume...')));
@@ -146,6 +151,8 @@ class _UserDashboardState extends State<UserDashboard> {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
 
@@ -183,6 +190,45 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
+
+  // Same confirmation the admin side uses, so one tap can't sign you out.
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text('Log out?'),
+          content: const Text('You will need to sign in again to apply for jobs.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC6262),
+              ),
+              child: const Text('Log out'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await FirebaseAuth.instance.signOut();
+    }
+  }
+
+  // ----------------------------------------------------------------- build
+
+  static const Color _border = Color(0xFFE2E8F0);
+  static const List<BoxShadow> _softShadow = [
+    BoxShadow(color: Color(0x0A172554), blurRadius: 14, offset: Offset(0, 4)),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -213,11 +259,10 @@ class _UserDashboardState extends State<UserDashboard> {
         actions: [
           IconButton(
             tooltip: 'Logout',
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-            },
+            onPressed: _confirmLogout,
             icon: const Icon(Icons.logout_outlined),
           ),
+          const SizedBox(width: 4),
         ],
       ),
 
@@ -289,12 +334,19 @@ class _UserDashboardState extends State<UserDashboard> {
 
                 return LayoutBuilder(
                   builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 600;
                     final isWide = constraints.maxWidth > 800;
+                    final padding = compact ? 16.0 : (isWide ? 40.0 : 24.0);
+                    final contentWidth = (constraints.maxWidth - padding * 2)
+                        .clamp(0.0, 1200.0)
+                        .toDouble();
 
                     return SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: EdgeInsets.symmetric(
-                        horizontal: isWide ? 40 : 20,
-                        vertical: 28,
+                        horizontal: padding,
+                        vertical: compact ? 18 : 28,
                       ),
                       child: Center(
                         child: ConstrainedBox(
@@ -303,89 +355,89 @@ class _UserDashboardState extends State<UserDashboard> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Welcome section.
-                              Text(
-                                'Welcome back, $userName!',
-                                style: const TextStyle(
-                                  fontSize: 27,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.navy,
-                                ),
-                              ),
+                              _welcomeCard(compact),
 
-                              const SizedBox(height: 8),
-
-                              const Text(
-                                'Find your next opportunity and take the next step in your career.',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: AppTheme.textMuted,
-                                ),
-                              ),
-
-                              const SizedBox(height: 28),
+                              SizedBox(height: compact ? 16 : 24),
 
                               // Resume upload and management section.
-                              _resumeSection(),
+                              _resumeSection(compact),
 
-                              const SizedBox(height: 28),
+                              SizedBox(height: compact ? 16 : 24),
 
                               // Statistics cards.
-                              Wrap(
-                                spacing: 16,
-                                runSpacing: 16,
-                                children: [
-                                  _statCard(
-                                    title: 'Available Jobs',
-                                    value: activeJobs.length.toString(),
-                                    icon: Icons.work_outline,
-                                    color: AppTheme.primary,
+                              _statRow(
+                                contentWidth: contentWidth,
+                                compact: compact,
+                                cards: (width) => [
+                                  SizedBox(
+                                    width: width,
+                                    child: _statCard(
+                                      title: 'Available Jobs',
+                                      value: activeJobs.length.toString(),
+                                      icon: Icons.work_outline,
+                                      color: AppTheme.primary,
+                                      compact: compact,
+                                    ),
                                   ),
-                                  _statCard(
-                                    title: 'My Applications',
-                                    value: applications.length.toString(),
-                                    icon: Icons.description_outlined,
-                                    color: Colors.orange,
+                                  SizedBox(
+                                    width: width,
+                                    child: _statCard(
+                                      title: 'My Applications',
+                                      value: applications.length.toString(),
+                                      icon: Icons.description_outlined,
+                                      color: Colors.orange,
+                                      compact: compact,
+                                    ),
                                   ),
                                 ],
                               ),
 
-                              const SizedBox(height: 35),
+                              SizedBox(height: compact ? 28 : 35),
 
                               // Search section.
-                              const Text(
+                              Text(
                                 'Explore Opportunities',
                                 style: TextStyle(
-                                  fontSize: 22,
+                                  fontSize: compact ? 20 : 22,
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.navy,
                                 ),
                               ),
 
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
 
                               const Text(
                                 'Discover jobs that match your skills and interests.',
-                                style: TextStyle(color: AppTheme.textMuted),
+                                style: TextStyle(
+                                  color: AppTheme.textMuted,
+                                  height: 1.4,
+                                ),
                               ),
 
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 16),
 
                               TextField(
                                 controller: _searchController,
+                                textInputAction: TextInputAction.search,
                                 onChanged: (value) {
                                   setState(() {
                                     searchQuery = value;
                                   });
                                 },
                                 decoration: InputDecoration(
-                                  hintText:
-                                      'Search by job title, department or location...',
+                                  hintText: compact
+                                      ? 'Search title, department, location'
+                                      : 'Search by job title, department or location...',
+                                  hintMaxLines: 1,
+                                  filled: true,
+                                  fillColor: Colors.white,
                                   prefixIcon: const Icon(
                                     Icons.search,
                                     color: AppTheme.primary,
                                   ),
                                   suffixIcon: searchQuery.isNotEmpty
                                       ? IconButton(
+                                          tooltip: 'Clear search',
                                           onPressed: () {
                                             _searchController.clear();
 
@@ -399,7 +451,7 @@ class _UserDashboardState extends State<UserDashboard> {
                                 ),
                               ),
 
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 22),
 
                               // Jobs heading.
                               Row(
@@ -418,31 +470,25 @@ class _UserDashboardState extends State<UserDashboard> {
                                     '${filteredJobs.length} jobs found',
                                     style: const TextStyle(
                                       color: AppTheme.textMuted,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ],
                               ),
 
-                              const SizedBox(height: 18),
+                              const SizedBox(height: 16),
 
-                              // Job list.
+                              // Job list: one column on phones and tablets,
+                              // two on wide screens.
                               if (filteredJobs.isEmpty)
                                 _emptyJobs()
                               else
-                                ...filteredJobs.map((doc) {
-                                  final job = doc.data();
-                                  final jobId = doc.id;
-
-                                  final hasApplied = appliedJobIds.contains(
-                                    jobId,
-                                  );
-
-                                  return _jobCard(
-                                    job: job,
-                                    jobId: jobId,
-                                    hasApplied: hasApplied,
-                                  );
-                                }),
+                                _jobGrid(
+                                  contentWidth: contentWidth,
+                                  compact: compact,
+                                  jobs: filteredJobs,
+                                  appliedJobIds: appliedJobIds,
+                                ),
 
                               const SizedBox(height: 30),
                             ],
@@ -460,8 +506,65 @@ class _UserDashboardState extends State<UserDashboard> {
     );
   }
 
+  // --------------------------------------------------------------- widgets
+
+  Widget _welcomeCard(bool compact) {
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      padding: EdgeInsets.all(compact ? 20 : 28),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppTheme.navy, Color(0xFF1E3A8A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -40,
+            top: -50,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.06),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome back, $userName!',
+                style: TextStyle(
+                  fontSize: compact ? 22 : 27,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Find your next opportunity and take the next step in your career.',
+                style: TextStyle(
+                  fontSize: compact ? 13.5 : 15,
+                  color: Colors.white.withValues(alpha: 0.78),
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // Candidate resume section.
-  Widget _resumeSection() {
+  Widget _resumeSection(bool compact) {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _resumeStream,
       builder: (context, snapshot) {
@@ -471,39 +574,51 @@ class _UserDashboardState extends State<UserDashboard> {
 
         final fileName = resumeData?['fileName']?.toString() ?? '';
 
+        final loading = snapshot.connectionState == ConnectionState.waiting;
+
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(compact ? 16 : 20),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: _border),
+            boxShadow: _softShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(
-                    Icons.description_outlined,
-                    color: AppTheme.primary,
-                    size: 25,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.description_outlined,
+                      color: AppTheme.primary,
+                      size: 22,
+                    ),
                   ),
-                  SizedBox(width: 10),
-                  Text(
-                    'My Resume',
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.navy,
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'My Resume',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.navy,
+                      ),
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
-              if (snapshot.connectionState == ConnectionState.waiting)
+              if (loading)
                 const LinearProgressIndicator()
               else if (snapshot.hasError)
                 const Text(
@@ -511,35 +626,53 @@ class _UserDashboardState extends State<UserDashboard> {
                   style: TextStyle(color: Colors.red),
                 )
               else if (hasResume) ...[
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.picture_as_pdf,
-                      color: Colors.red,
-                      size: 30,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        fileName,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.picture_as_pdf,
+                        color: Colors.red,
+                        size: 28,
                       ),
-                    ),
-                    const Icon(Icons.check_circle, color: Colors.green),
-                  ],
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          fileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.check_circle, color: Colors.green),
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 const Text(
                   'Your resume is uploaded. You can replace it whenever you need.',
-                  style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textMuted,
+                    height: 1.4,
+                  ),
                 ),
               ] else
                 const Text(
                   'You have not uploaded a resume yet. Upload your PDF to apply for jobs.',
-                  style: TextStyle(color: AppTheme.textMuted),
+                  style: TextStyle(color: AppTheme.textMuted, height: 1.4),
                 ),
 
               const SizedBox(height: 16),
@@ -547,15 +680,34 @@ class _UserDashboardState extends State<UserDashboard> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: snapshot.connectionState == ConnectionState.waiting
+                  onPressed: (loading || _uploading)
                       ? null
                       : _pickAndUploadResume,
-                  icon: Icon(hasResume ? Icons.refresh : Icons.upload_file),
-                  label: Text(hasResume ? 'Replace Resume' : 'Upload Resume'),
+                  icon: _uploading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.primary,
+                          ),
+                        )
+                      : Icon(hasResume ? Icons.refresh : Icons.upload_file),
+                  label: Text(
+                    _uploading
+                        ? 'Uploading & analysing...'
+                        : (hasResume ? 'Replace Resume' : 'Upload Resume'),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    disabledBackgroundColor:
+                        AppTheme.primary.withValues(alpha: 0.12),
+                    disabledForegroundColor: AppTheme.primary,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -566,53 +718,95 @@ class _UserDashboardState extends State<UserDashboard> {
     );
   }
 
+  /// Two cards: side by side filling the row on phones, fixed width otherwise.
+  Widget _statRow({
+    required double contentWidth,
+    required bool compact,
+    required List<Widget> Function(double width) cards,
+  }) {
+    const gap = 12.0;
+    final width = compact ? (contentWidth - gap) / 2 : 230.0;
+
+    return Wrap(spacing: gap, runSpacing: gap, children: cards(width));
+  }
+
   // Statistics card.
   Widget _statCard({
     required String title,
     required String value,
     required IconData icon,
     required Color color,
+    required bool compact,
   }) {
     return Container(
-      width: 230,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(compact ? 14 : 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
+        boxShadow: _softShadow,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(icon, color: color, size: 25),
+            child: Icon(icon, color: color, size: 20),
           ),
-
-          const SizedBox(width: 14),
-
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 23,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.navy,
-                ),
-              ),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
-              ),
-            ],
+          SizedBox(height: compact ? 12 : 14),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: compact ? 26 : 28,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.navy,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _jobGrid({
+    required double contentWidth,
+    required bool compact,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> jobs,
+    required Set<String> appliedJobIds,
+  }) {
+    const gap = 14.0;
+    final twoColumns = contentWidth >= 900;
+    final width = twoColumns ? (contentWidth - gap) / 2 : contentWidth;
+
+    return Wrap(
+      spacing: gap,
+      runSpacing: gap,
+      children: jobs.map((doc) {
+        return SizedBox(
+          width: width,
+          child: _jobCard(
+            job: doc.data(),
+            jobId: doc.id,
+            hasApplied: appliedJobIds.contains(doc.id),
+            compact: compact,
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -621,6 +815,7 @@ class _UserDashboardState extends State<UserDashboard> {
     required Map<String, dynamic> job,
     required String jobId,
     required bool hasApplied,
+    required bool compact,
   }) {
     final title = job['title']?.toString() ?? 'Untitled Job';
     final department = job['department']?.toString() ?? '';
@@ -629,12 +824,12 @@ class _UserDashboardState extends State<UserDashboard> {
     final salary = job['salary']?.toString() ?? '';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(22),
+      padding: EdgeInsets.all(compact ? 16 : 22),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
+        boxShadow: _softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,7 +838,7 @@ class _UserDashboardState extends State<UserDashboard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(11),
                 decoration: BoxDecoration(
                   color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -651,11 +846,11 @@ class _UserDashboardState extends State<UserDashboard> {
                 child: const Icon(
                   Icons.work_outline,
                   color: AppTheme.primary,
-                  size: 26,
+                  size: 24,
                 ),
               ),
 
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
 
               Expanded(
                 child: Column(
@@ -663,20 +858,29 @@ class _UserDashboardState extends State<UserDashboard> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 18,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: compact ? 17 : 18,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.navy,
+                        height: 1.25,
                       ),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      department,
-                      style: const TextStyle(color: AppTheme.textMuted),
-                    ),
+                    if (department.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        department,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: AppTheme.textMuted),
+                      ),
+                    ],
                   ],
                 ),
               ),
+
+              const SizedBox(width: 8),
 
               if (hasApplied)
                 _tag('Applied', Colors.green)
@@ -685,11 +889,11 @@ class _UserDashboardState extends State<UserDashboard> {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           Wrap(
-            spacing: 18,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _jobInfo(Icons.location_on_outlined, location),
               if (jobType.isNotEmpty) _jobInfo(Icons.access_time, jobType),
@@ -697,16 +901,16 @@ class _UserDashboardState extends State<UserDashboard> {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
-          const Divider(color: Color(0xFFE2E8F0)),
+          const Divider(height: 1, color: _border),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           Row(
             children: [
               Expanded(
-                child: TextButton(
+                child: OutlinedButton(
                   onPressed: () {
                     _showJobDetails(
                       job: job,
@@ -714,6 +918,16 @@ class _UserDashboardState extends State<UserDashboard> {
                       hasApplied: hasApplied,
                     );
                   },
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 46),
+                    foregroundColor: AppTheme.primary,
+                    side: BorderSide(
+                      color: AppTheme.primary.withValues(alpha: 0.35),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   child: const Text('View Details'),
                 ),
               ),
@@ -730,9 +944,9 @@ class _UserDashboardState extends State<UserDashboard> {
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.green.shade50,
                     disabledForegroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    minimumSize: const Size(0, 46),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: Text(hasApplied ? 'Applied' : 'Apply Now'),
@@ -745,7 +959,8 @@ class _UserDashboardState extends State<UserDashboard> {
     );
   }
 
-  // Job details bottom sheet.
+  // Job details bottom sheet. The Apply button stays pinned at the bottom,
+  // so on a phone you don't have to scroll to the end to apply.
   void _showJobDetails({
     required Map<String, dynamic> job,
     required String jobId,
@@ -754,79 +969,99 @@ class _UserDashboardState extends State<UserDashboard> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.white,
+      constraints: const BoxConstraints(maxWidth: 640),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 45,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+        final maxHeight = MediaQuery.sizeOf(sheetContext).height * 0.9;
+
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 45,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 20, 22, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        job['title']?.toString() ?? 'Job Details',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.navy,
+                          height: 1.2,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Text(
+                        '${job['department'] ?? ''} • ${job['location'] ?? ''}',
+                        style: const TextStyle(color: AppTheme.textMuted),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      _detailSection(
+                        'Job Description',
+                        job['description']?.toString() ?? 'Not provided',
+                      ),
+
+                      _detailSection(
+                        'Responsibilities',
+                        job['responsibilities']?.toString() ?? 'Not provided',
+                      ),
+
+                      _detailSection(
+                        'Required Skills',
+                        _formatSkills(job['skills']),
+                      ),
+
+                      _detailSection(
+                        'Education',
+                        job['education']?.toString() ?? 'Not specified',
+                      ),
+
+                      _detailSection(
+                        'Experience',
+                        job['experience']?.toString() ?? 'Not specified',
+                      ),
+
+                      _detailSection(
+                        'Salary',
+                        job['salary']?.toString() ?? 'Not specified',
+                      ),
+                    ],
                   ),
                 ),
+              ),
 
-                const SizedBox(height: 25),
-
-                Text(
-                  job['title']?.toString() ?? 'Job Details',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.navy,
-                  ),
+              // Pinned apply bar.
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 14),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: _border)),
                 ),
-
-                const SizedBox(height: 8),
-
-                Text(
-                  '${job['department'] ?? ''} • ${job['location'] ?? ''}',
-                  style: const TextStyle(color: AppTheme.textMuted),
-                ),
-
-                const SizedBox(height: 25),
-
-                _detailSection(
-                  'Job Description',
-                  job['description']?.toString() ?? 'Not provided',
-                ),
-
-                _detailSection(
-                  'Responsibilities',
-                  job['responsibilities']?.toString() ?? 'Not provided',
-                ),
-
-                _detailSection('Required Skills', _formatSkills(job['skills'])),
-
-                _detailSection(
-                  'Education',
-                  job['education']?.toString() ?? 'Not specified',
-                ),
-
-                _detailSection(
-                  'Experience',
-                  job['experience']?.toString() ?? 'Not specified',
-                ),
-
-                _detailSection(
-                  'Salary',
-                  job['salary']?.toString() ?? 'Not specified',
-                ),
-
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  width: double.infinity,
+                child: SafeArea(
+                  top: false,
                   child: ElevatedButton(
                     onPressed: hasApplied
                         ? null
@@ -841,15 +1076,18 @@ class _UserDashboardState extends State<UserDashboard> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.all(16),
+                      minimumSize: const Size(double.infinity, 52),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: Text(
                       hasApplied ? 'Already Applied' : 'Apply for this Job',
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -893,16 +1131,26 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   Widget _jobInfo(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: AppTheme.textMuted),
-        const SizedBox(width: 5),
-        Text(
-          text,
-          style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: AppTheme.textMuted),
+          const SizedBox(width: 5),
+          // Flexible so a long location wraps instead of overflowing.
+          Flexible(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -927,11 +1175,11 @@ class _UserDashboardState extends State<UserDashboard> {
   Widget _emptyJobs() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(35),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
       ),
       child: const Column(
         children: [

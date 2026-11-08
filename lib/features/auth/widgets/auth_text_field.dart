@@ -10,6 +10,16 @@ class AuthTextField extends StatelessWidget {
   final TextInputType keyboardType;
   final FormFieldValidator<String>? validator;
 
+  /// Keyboard action key (Next / Done) and what Enter does.
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
+
+  /// Lets the phone's password manager offer to fill this field.
+  final Iterable<String>? autofillHints;
+
+  /// Turn off for email and password so the keyboard does not "correct" them.
+  final bool autocorrect;
+
   const AuthTextField({
     super.key,
     required this.controller,
@@ -20,6 +30,10 @@ class AuthTextField extends StatelessWidget {
     this.suffixIcon,
     this.keyboardType = TextInputType.text,
     this.validator,
+    this.textInputAction,
+    this.onFieldSubmitted,
+    this.autofillHints,
+    this.autocorrect = true,
   });
 
   @override
@@ -41,6 +55,11 @@ class AuthTextField extends StatelessWidget {
           obscureText: obscureText,
           keyboardType: keyboardType,
           validator: validator,
+          textInputAction: textInputAction,
+          onFieldSubmitted: onFieldSubmitted,
+          autofillHints: autofillHints,
+          autocorrect: autocorrect,
+          enableSuggestions: autocorrect,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFF94A3B8)),

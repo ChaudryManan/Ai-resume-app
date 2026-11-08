@@ -1,13 +1,22 @@
-
 import 'package:flutter/material.dart';
-import 'package:flutter/material.dart' show WidgetStateProperty;
 
+/// Analytics page.
+///
+/// Layout rules (same breakpoints as Overview):
+///  * width < 600  -> phone: 16px padding, 2-column compact stat cards,
+///                    charts stacked, slightly larger chart text.
+///  * width >= 600 -> tablet / desktop: 25px padding, content capped at 1100.
+///  * width >= 760 -> 4 stat cards in one row.
+///  * width >= 850 -> charts sit side by side.
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
 
   static const Color navy = Color(0xFF172554);
   static const Color blue = Color(0xFF4F6EF7);
   static const Color background = Color(0xFFF5F7FC);
+  static const Color _muted = Color(0xFF64748B);
+  static const Color _faint = Color(0xFF94A3B8);
+  static const Color _border = Color(0xFFE9EDF5);
 
   final List<Map<String, dynamic>> monthlyApplications = const [
     {'month': 'May', 'count': 35},
@@ -39,60 +48,71 @@ class AnalyticsScreen extends StatelessWidget {
     {'title': 'Frontend Developer', 'applications': 41},
   ];
 
+  // ------------------------------------------------------------ stat card
+
   Widget statCard(
     String title,
     String value,
     String subtitle,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    required bool compact,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(compact ? 14 : 18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE9EDF5)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A172554),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(icon, color: color, size: 23),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: navy,
-                    fontSize: 23,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+          SizedBox(height: compact ? 12 : 16),
+          Text(
+            value,
+            style: TextStyle(
+              color: navy,
+              fontSize: compact ? 26 : 30,
+              fontWeight: FontWeight.w800,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: navy,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -100,17 +120,82 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
+  Widget _statGrid(double contentWidth, bool compact) {
+    final columns = contentWidth >= 760 ? 4 : 2;
+    const gap = 12.0;
+    final width = (contentWidth - gap * (columns - 1)) / columns;
+
+    Widget cell(
+      String title,
+      String value,
+      String subtitle,
+      IconData icon,
+      Color color,
+    ) {
+      return SizedBox(
+        width: width,
+        child: statCard(title, value, subtitle, icon, color, compact: compact),
+      );
+    }
+
+    return Wrap(
+      spacing: gap,
+      runSpacing: gap,
+      children: [
+        cell(
+          'Total Applications',
+          '248',
+          'Across all positions',
+          Icons.description_outlined,
+          blue,
+        ),
+        cell(
+          'Shortlisted',
+          '85',
+          'Candidates selected',
+          Icons.check_circle_outline,
+          const Color(0xFF059669),
+        ),
+        cell(
+          'Active Jobs',
+          '12',
+          'Currently accepting',
+          Icons.work_outline,
+          const Color(0xFF0D9488),
+        ),
+        cell(
+          'Avg. ATS Score',
+          '78%',
+          'Across applicants',
+          Icons.analytics_outlined,
+          const Color(0xFFD97706),
+        ),
+      ],
+    );
+  }
+
+  // --------------------------------------------------------- section card
+
   Widget sectionCard({
     required String title,
     required String subtitle,
     required Widget child,
+    required bool compact,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: EdgeInsets.all(compact ? 16 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFE9EDF5)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A172554),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,68 +205,66 @@ class AnalyticsScreen extends StatelessWidget {
             style: const TextStyle(
               color: navy,
               fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: _faint, fontSize: 12, height: 1.35),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: compact ? 18 : 24),
           child,
         ],
       ),
     );
   }
 
-  Widget monthlyChart() {
+  // --------------------------------------------------------------- charts
+
+  Widget monthlyChart({required bool compact}) {
     final maxCount = monthlyApplications
         .map((item) => item['count'] as int)
         .reduce((a, b) => a > b ? a : b);
 
+    final maxBar = compact ? 118.0 : 155.0;
+
     return SizedBox(
-      height: 230,
+      height: compact ? 190 : 230,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: monthlyApplications.map((item) {
           final count = item['count'] as int;
-          final barHeight = (count / maxCount) * 155;
+          final barHeight = (count / maxCount) * maxBar;
 
           return Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 7),
+              padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 7),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text(
                     '$count',
                     style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      color: _muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Container(
                     height: barHeight,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: blue,
-                      borderRadius: const BorderRadius.vertical(
+                      borderRadius: BorderRadius.vertical(
                         top: Radius.circular(7),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Text(
                     item['month'],
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 10,
-                    ),
+                    style: const TextStyle(color: _muted, fontSize: 11),
                   ),
                 ],
               ),
@@ -192,7 +275,7 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  Widget statusChart() {
+  Widget statusChart({required bool compact}) {
     final total = applicationStatuses.fold<int>(
       0,
       (sum, item) => sum + (item['count'] as int),
@@ -200,30 +283,29 @@ class AnalyticsScreen extends StatelessWidget {
 
     return Column(
       children: [
-        Row(
-          children: applicationStatuses.map((item) {
-            final percentage = (item['count'] / total) as double;
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Row(
+            children: applicationStatuses.map((item) {
+              final percentage = (item['count'] / total) as double;
 
-            return Expanded(
-              flex: (percentage * 1000).round(),
-              child: Container(
-                height: 17,
-                margin: const EdgeInsets.only(right: 3),
-                decoration: BoxDecoration(
+              return Expanded(
+                flex: (percentage * 1000).round(),
+                child: Container(
+                  height: compact ? 14 : 17,
+                  margin: const EdgeInsets.only(right: 2),
                   color: item['color'],
-                  borderRadius: BorderRadius.circular(5),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: compact ? 18 : 24),
         ...applicationStatuses.map((item) {
-          final percentage =
-              (item['count'] / total * 100).toStringAsFixed(1);
+          final percentage = (item['count'] / total * 100).toStringAsFixed(1);
 
           return Padding(
-            padding: const EdgeInsets.only(bottom: 17),
+            padding: EdgeInsets.only(bottom: compact ? 14 : 17),
             child: Row(
               children: [
                 Container(
@@ -238,30 +320,24 @@ class AnalyticsScreen extends StatelessWidget {
                 Expanded(
                   child: Text(
                     item['label'],
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: _muted, fontSize: 13),
                   ),
                 ),
                 Text(
                   '${item['count']}',
                   style: const TextStyle(
                     color: navy,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
                   ),
                 ),
                 const SizedBox(width: 12),
                 SizedBox(
-                  width: 48,
+                  width: 52,
                   child: Text(
                     '$percentage%',
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 11,
-                    ),
+                    style: const TextStyle(color: _muted, fontSize: 12),
                   ),
                 ),
               ],
@@ -272,7 +348,7 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  Widget scoreChart() {
+  Widget scoreChart({required bool compact}) {
     final maxScore = scoreDistribution
         .map((item) => item['count'] as int)
         .reduce((a, b) => a > b ? a : b);
@@ -282,17 +358,16 @@ class AnalyticsScreen extends StatelessWidget {
         final count = item['count'] as int;
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 17),
+          padding: EdgeInsets.only(bottom: compact ? 14 : 17),
           child: Row(
             children: [
               SizedBox(
-                width: 75,
+                width: compact ? 78 : 80,
                 child: Text(
                   item['range'],
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 10,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _muted, fontSize: 12),
                 ),
               ),
               Expanded(
@@ -308,14 +383,14 @@ class AnalyticsScreen extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               SizedBox(
-                width: 25,
+                width: 28,
                 child: Text(
                   '$count',
                   textAlign: TextAlign.right,
                   style: const TextStyle(
                     color: navy,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
                   ),
                 ),
               ),
@@ -326,7 +401,7 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  Widget popularJobsChart() {
+  Widget popularJobsChart({required bool compact}) {
     final maxApplications = popularJobs
         .map((item) => item['applications'] as int)
         .reduce((a, b) => a > b ? a : b);
@@ -336,7 +411,7 @@ class AnalyticsScreen extends StatelessWidget {
         final count = job['applications'] as int;
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 19),
+          padding: EdgeInsets.only(bottom: compact ? 16 : 19),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -345,23 +420,23 @@ class AnalyticsScreen extends StatelessWidget {
                   Expanded(
                     child: Text(
                       job['title'],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: navy,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     '$count applications',
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 11,
-                    ),
+                    style: const TextStyle(color: _muted, fontSize: 12),
                   ),
                 ],
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: LinearProgressIndicator(
@@ -378,219 +453,183 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
+  // --------------------------------------------------------------- header
+
+  Widget _header(bool compact) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Recruitment Analytics',
+          style: TextStyle(
+            color: navy,
+            fontSize: compact ? 24 : 27,
+            fontWeight: FontWeight.w800,
+            height: 1.15,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Track your hiring performance and candidate activity.',
+          style: TextStyle(color: _muted, fontSize: 13, height: 1.4),
+        ),
+      ],
+    );
+  }
+
+  Widget _banner(bool compact) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(compact ? 16 : 20),
+      decoration: BoxDecoration(
+        color: navy,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.insights_outlined,
+              color: Color(0xFF9DB1FF),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recruitment Performance',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Use ATS scores and application trends to identify '
+                  'strong candidates and improve your hiring process.',
+                  style: TextStyle(
+                    color: Color(0xFFCBD5E1),
+                    fontSize: 12,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Two cards side by side on wide screens, stacked on narrow ones.
+  Widget _pair({
+    required bool wide,
+    required Widget first,
+    required Widget second,
+    int firstFlex = 1,
+    int secondFlex = 1,
+  }) {
+    if (wide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(flex: firstFlex, child: first),
+          const SizedBox(width: 16),
+          Expanded(flex: secondFlex, child: second),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        first,
+        const SizedBox(height: 14),
+        second,
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------- build
+
   @override
   Widget build(BuildContext context) {
     return Container(
       color: background,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Recruitment Analytics',
-              style: TextStyle(
-                color: navy,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 7),
-            const Text(
-              'Track your hiring performance and candidate activity.',
-              style: TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 24),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 600;
+          final padding = compact ? 16.0 : 25.0;
+          final contentWidth = (constraints.maxWidth - padding * 2)
+              .clamp(0.0, 1100.0)
+              .toDouble();
+          final wide = contentWidth >= 800;
+          final gap = compact ? 14.0 : 18.0;
 
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 850
-                    ? 4
-                    : constraints.maxWidth >= 500
-                        ? 2
-                        : 1;
-
-                const gap = 13.0;
-                final width =
-                    (constraints.maxWidth - gap * (columns - 1)) / columns;
-
-                return Wrap(
-                  spacing: gap,
-                  runSpacing: gap,
+          return SingleChildScrollView(
+            padding: EdgeInsets.all(padding),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: width,
-                      child: statCard(
-                        'Total Applications',
-                        '248',
-                        'Across all positions',
-                        Icons.description_outlined,
-                        blue,
+                    _header(compact),
+                    SizedBox(height: compact ? 18 : 24),
+                    _statGrid(contentWidth, compact),
+                    SizedBox(height: gap + 4),
+                    _pair(
+                      wide: wide,
+                      firstFlex: 3,
+                      secondFlex: 2,
+                      first: sectionCard(
+                        title: 'Application Overview',
+                        subtitle: 'Applications received over the last six months',
+                        compact: compact,
+                        child: monthlyChart(compact: compact),
+                      ),
+                      second: sectionCard(
+                        title: 'Application Status',
+                        subtitle: 'Distribution of candidate applications',
+                        compact: compact,
+                        child: statusChart(compact: compact),
                       ),
                     ),
-                    SizedBox(
-                      width: width,
-                      child: statCard(
-                        'Shortlisted',
-                        '85',
-                        'Candidates selected',
-                        Icons.check_circle_outline,
-                        const Color(0xFF059669),
+                    SizedBox(height: gap),
+                    _pair(
+                      wide: wide,
+                      first: sectionCard(
+                        title: 'ATS Score Distribution',
+                        subtitle: 'Candidate scores grouped by matching percentage',
+                        compact: compact,
+                        child: scoreChart(compact: compact),
+                      ),
+                      second: sectionCard(
+                        title: 'Popular Job Positions',
+                        subtitle: 'Applications received by job position',
+                        compact: compact,
+                        child: popularJobsChart(compact: compact),
                       ),
                     ),
-                    SizedBox(
-                      width: width,
-                      child: statCard(
-                        'Active Jobs',
-                        '12',
-                        'Currently accepting',
-                        Icons.work_outline,
-                        const Color(0xFF0D9488),
-                      ),
-                    ),
-                    SizedBox(
-                      width: width,
-                      child: statCard(
-                        'Avg. ATS Score',
-                        '78%',
-                        'Across applicants',
-                        Icons.analytics_outlined,
-                        const Color(0xFFD97706),
-                      ),
-                    ),
+                    SizedBox(height: gap),
+                    _banner(compact),
+                    const SizedBox(height: 8),
                   ],
-                );
-              },
-            ),
-
-            const SizedBox(height: 22),
-
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 850;
-
-                final applications = sectionCard(
-                  title: 'Application Overview',
-                  subtitle: 'Applications received over the last six months',
-                  child: monthlyChart(),
-                );
-
-                final statuses = sectionCard(
-                  title: 'Application Status',
-                  subtitle: 'Distribution of candidate applications',
-                  child: statusChart(),
-                );
-
-                if (isWide) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: applications),
-                      const SizedBox(width: 16),
-                      Expanded(flex: 2, child: statuses),
-                    ],
-                  );
-                }
-
-                return Column(
-                  children: [
-                    applications,
-                    const SizedBox(height: 16),
-                    statuses,
-                  ],
-                );
-              },
-            ),
-
-            const SizedBox(height: 18),
-
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 850;
-
-                final scores = sectionCard(
-                  title: 'ATS Score Distribution',
-                  subtitle: 'Candidate scores grouped by matching percentage',
-                  child: scoreChart(),
-                );
-
-                final jobs = sectionCard(
-                  title: 'Popular Job Positions',
-                  subtitle: 'Applications received by job position',
-                  child: popularJobsChart(),
-                );
-
-                if (isWide) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: scores),
-                      const SizedBox(width: 16),
-                      Expanded(child: jobs),
-                    ],
-                  );
-                }
-
-                return Column(
-                  children: [
-                    scores,
-                    const SizedBox(height: 16),
-                    jobs,
-                  ],
-                );
-              },
-            ),
-
-            const SizedBox(height: 18),
-
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: navy,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.insights_outlined,
-                    color: Color(0xFF9DB1FF),
-                    size: 30,
-                  ),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Recruitment Performance',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Use ATS scores and application trends to identify '
-                          'strong candidates and improve your hiring process.',
-                          style: TextStyle(
-                            color: Color(0xFFCBD5E1),
-                            fontSize: 11,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

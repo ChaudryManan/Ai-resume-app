@@ -17,15 +17,19 @@ class AuthPageShell extends StatelessWidget {
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
+                // Phones get a little less outer padding so the card is wider.
+                final phone = constraints.maxWidth < 600;
+                final h = phone ? 16.0 : 20.0;
+                final v = phone ? 16.0 : 24.0;
+
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 24,
-                  ),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.symmetric(horizontal: h, vertical: v),
                   child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight > 48
-                              ? constraints.maxHeight - 48
+                          minHeight: constraints.maxHeight > v * 2
+                              ? constraints.maxHeight - v * 2
                               : 0,
                         ),
                     child: Center(
@@ -95,11 +99,15 @@ class AuthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 380;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+      padding: narrow
+          ? const EdgeInsets.fromLTRB(18, 24, 18, 20)
+          : const EdgeInsets.fromLTRB(24, 28, 24, 24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(narrow ? 24 : 28),
         border: Border.all(color: Colors.white.withValues(alpha: 0.64)),
         boxShadow: const [
           BoxShadow(
@@ -119,11 +127,14 @@ class AuthBrand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 380;
+    final logo = narrow ? 52.0 : 58.0;
+
     return Column(
       children: [
         Container(
-          width: 58,
-          height: 58,
+          width: logo,
+          height: logo,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF60A5FA), AppTheme.primaryDark],

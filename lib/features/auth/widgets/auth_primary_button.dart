@@ -7,11 +7,15 @@ class AuthPrimaryButton extends StatelessWidget {
   final VoidCallback onPressed;
   final IconData? icon;
 
+  /// Shows a spinner and ignores taps while a request is running.
+  final bool isLoading;
+
   const AuthPrimaryButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.icon,
+    this.isLoading = false,
   });
 
   @override
@@ -36,31 +40,46 @@ class AuthPrimaryButton extends StatelessWidget {
           ],
         ),
         child: ElevatedButton(
-          onPressed: onPressed,
+          onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            disabledForegroundColor: Colors.white,
             shadowColor: Colors.transparent,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w700,
+          child: isLoading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: Colors.white,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (icon != null) ...[
+                      const SizedBox(width: 10),
+                      Icon(icon, size: 20),
+                    ],
+                  ],
                 ),
-              ),
-              if (icon != null) ...[
-                const SizedBox(width: 10),
-                Icon(icon, size: 20),
-              ],
-            ],
-          ),
         ),
       ),
     );

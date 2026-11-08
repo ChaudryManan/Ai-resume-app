@@ -1,14 +1,33 @@
+import 'package:flutter/foundation.dart';
+
 class ApiConfig {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: '',
-  );
+  // Optional override: --dart-define=API_BASE_URL=<backend-url>
+  static const String _definedBaseUrl = String.fromEnvironment('API_BASE_URL');
+
+  /// Backend address.
+  ///
+  /// 1. If API_BASE_URL is passed, that wins (use it for a phone or server).
+  /// 2. In debug/profile runs it defaults to the local backend, so a plain
+  ///    `flutter run -d chrome` works:
+  ///      - web / desktop / iOS simulator -> http://localhost:8000
+  ///      - Android emulator              -> http://10.0.2.2:8000
+  /// 3. Release builds never fall back to localhost: pass API_BASE_URL.
+  static String get baseUrl {
+    if (_definedBaseUrl.isNotEmpty) return _definedBaseUrl;
+    if (kReleaseMode) return '';
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000';
+    }
+
+    return 'http://localhost:8000';
+  }
 
   static Uri _resolve(String path) {
     if (baseUrl.isEmpty) {
       throw StateError(
-        'API_BASE_URL is not configured. Start the backend and pass '
-        '--dart-define=API_BASE_URL=<backend-url> to Flutter.',
+        'API_BASE_URL is not configured. Release builds need '
+        '--dart-define=API_BASE_URL=<backend-url>.',
       );
     }
 

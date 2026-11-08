@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _hidePassword = true;
   bool _rememberMe = true;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -31,9 +32,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
  
 Future<void> _login() async {
+  if (_loading) return;
+
   if (!_formKey.currentState!.validate()) {
     return;
   }
+
+  FocusScope.of(context).unfocus();
+  setState(() => _loading = true);
 
   try {
     await AuthService().login(
@@ -81,25 +87,31 @@ Future<void> _login() async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('An error occurred: $e')),
     );
+  } finally {
+    // On success AuthWrapper replaces this screen, so check mounted.
+    if (mounted) setState(() => _loading = false);
   }
 }
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 380;
+
     return AuthPageShell(
       child: AuthCard(
-        child: Form(
+        child: AutofillGroup(
+         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const AuthBrand(),
-              const SizedBox(height: 34),
-              const Text(
+              SizedBox(height: narrow ? 26 : 34),
+              Text(
                 'Welcome back',
                 style: TextStyle(
                   color: AppTheme.ink,
-                  fontSize: 27,
+                  fontSize: narrow ? 24 : 27,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.7,
                 ),
@@ -113,13 +125,16 @@ Future<void> _login() async {
                   height: 1.45,
                 ),
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: narrow ? 22 : 28),
               AuthTextField(
                 controller: _emailController,
                 label: 'Work email',
                 hint: 'name@company.com',
                 prefixIcon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.email],
+                autocorrect: false,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter your email';
@@ -139,6 +154,10 @@ Future<void> _login() async {
                 hint: 'Enter your password',
                 prefixIcon: Icons.lock_outline_rounded,
                 obscureText: _hidePassword,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.password],
+                autocorrect: false,
+                onFieldSubmitted: (_) => _login(),
                 suffixIcon: IconButton(
                   tooltip: _hidePassword ? 'Show password' : 'Hide password',
                   onPressed: () =>
@@ -158,27 +177,37 @@ Future<void> _login() async {
                 },
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Transform.translate(
-                    offset: const Offset(-7, 0),
-                    child: Checkbox(
-                      value: _rememberMe,
-                      activeColor: AppTheme.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final remember = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Transform.translate(
+                        offset: const Offset(-7, 0),
+                        child: Checkbox(
+                          value: _rememberMe,
+                          activeColor: AppTheme.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          onChanged: (value) =>
+                              setState(() => _rememberMe = value ?? false),
+                        ),
                       ),
-                      onChanged: (value) =>
-                          setState(() => _rememberMe = value ?? false),
-                    ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Keep me signed in',
-                      style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
-                    ),
-                  ),
-                  TextButton(
+                      Transform.translate(
+                        offset: const Offset(-7, 0),
+                        child: const Text(
+                          'Keep me signed in',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+
+                  final forgot = TextButton(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -190,18 +219,36 @@ Future<void> _login() async {
                     },
                     style: TextButton.styleFrom(
                       foregroundColor: AppTheme.primary,
+                      minimumSize: const Size(48, 44),
                     ),
                     child: const Text(
                       'Forgot password?',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
-                  ),
-                ],
+                  );
+
+                  // Not enough room for both on one line (small phones).
+                  if (constraints.maxWidth < 300) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        remember,
+                        Align(alignment: Alignment.centerRight, child: forgot),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [remember, forgot],
+                  );
+                },
               ),
               const SizedBox(height: 19),
               AuthPrimaryButton(
                 label: 'Sign in to dashboard',
                 icon: Icons.arrow_forward_rounded,
+                isLoading: _loading,
                 onPressed: _login,
               ),
               const SizedBox(height: 27),
@@ -252,6 +299,7 @@ Future<void> _login() async {
               ),
             ],
           ),
+         ),
         ),
       ),
     );

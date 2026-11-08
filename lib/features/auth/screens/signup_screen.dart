@@ -23,6 +23,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -35,10 +36,15 @@ class _SignupScreenState extends State<SignupScreen> {
 
   
 Future<void> _signup() async {
+  if (_loading) return;
+
   // Check form validation
   if (!_formKey.currentState!.validate()) {
     return;
   }
+
+  FocusScope.of(context).unfocus();
+  setState(() => _loading = true);
 
   try {
     // Call Firebase signup service
@@ -79,15 +85,20 @@ Future<void> _signup() async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('An error occurred: $e')),
     );
+  } finally {
+    if (mounted) setState(() => _loading = false);
   }
 }
 
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 380;
+
     return AuthPageShell(
       child: AuthCard(
-        child: Form(
+        child: AutofillGroup(
+         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -95,8 +106,8 @@ Future<void> _signup() async {
               Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(12),
@@ -121,7 +132,7 @@ Future<void> _signup() async {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 40),
+                  const SizedBox(width: 44),
                 ],
               ),
               const SizedBox(height: 24),
@@ -141,12 +152,12 @@ Future<void> _signup() async {
                 ),
               ),
               const SizedBox(height: 17),
-              const Text(
+              Text(
                 'Start hiring smarter',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.ink,
-                  fontSize: 26,
+                  fontSize: narrow ? 23 : 26,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.7,
                 ),
@@ -168,6 +179,8 @@ Future<void> _signup() async {
                 hint: 'Enter your full name',
                 prefixIcon: Icons.person_outline_rounded,
                 keyboardType: TextInputType.name,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.name],
                 validator: (value) {
                   if (value == null || value.trim().isEmpty)
                     return 'Please enter your full name';
@@ -181,6 +194,9 @@ Future<void> _signup() async {
                 hint: 'name@company.com',
                 prefixIcon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.email],
+                autocorrect: false,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty)
                     return 'Please enter your email';
@@ -198,6 +214,9 @@ Future<void> _signup() async {
                 hint: 'Create a strong password',
                 prefixIcon: Icons.lock_outline_rounded,
                 obscureText: _hidePassword,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.newPassword],
+                autocorrect: false,
                 suffixIcon: IconButton(
                   tooltip: _hidePassword ? 'Show password' : 'Hide password',
                   onPressed: () =>
@@ -223,6 +242,10 @@ Future<void> _signup() async {
                 hint: 'Enter your password again',
                 prefixIcon: Icons.lock_reset_rounded,
                 obscureText: _hideConfirmPassword,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.newPassword],
+                autocorrect: false,
+                onFieldSubmitted: (_) => _signup(),
                 suffixIcon: IconButton(
                   tooltip: _hideConfirmPassword
                       ? 'Show password'
@@ -249,11 +272,13 @@ Future<void> _signup() async {
               AuthPrimaryButton(
                 label: 'Create account',
                 icon: Icons.arrow_forward_rounded,
+                isLoading: _loading,
                 onPressed: _signup,
               ),
               const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   const Text(
                     'Already have an account?',
@@ -273,6 +298,7 @@ Future<void> _signup() async {
               ),
             ],
           ),
+         ),
         ),
       ),
     );
