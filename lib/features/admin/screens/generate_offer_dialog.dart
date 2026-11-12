@@ -19,6 +19,8 @@ class _GenerateOfferDialogState extends State<GenerateOfferDialog> {
   final _hours = TextEditingController();
   final _joining = TextEditingController();
   final _terms = TextEditingController();
+  final _subject = TextEditingController();
+  final _body = TextEditingController();
   GeneratedOffer? _offer;
   bool _busy = false;
   String? _error;
@@ -26,6 +28,7 @@ class _GenerateOfferDialogState extends State<GenerateOfferDialog> {
   @override
   void dispose() {
     _salary.dispose(); _benefits.dispose(); _hours.dispose(); _joining.dispose(); _terms.dispose();
+    _subject.dispose(); _body.dispose();
     super.dispose();
   }
 
@@ -41,7 +44,7 @@ class _GenerateOfferDialogState extends State<GenerateOfferDialog> {
         joiningDate: _joining.text.trim().isEmpty ? null : _joining.text.trim(),
         additionalTerms: _terms.text.trim().isEmpty ? null : _terms.text.trim(),
       );
-      if (mounted) setState(() => _offer = offer);
+      if (mounted) setState(() { _offer = offer; _subject.text = offer.subject; _body.text = offer.body; });
     } catch (error) { if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', '')); }
     finally { if (mounted) setState(() => _busy = false); }
   }
@@ -61,7 +64,7 @@ class _GenerateOfferDialogState extends State<GenerateOfferDialog> {
     if (confirmed != true) return;
     setState(() { _busy = true; _error = null; });
     try {
-      await _service.approveAndSend(offer.id);
+      await _service.approveAndSend(offer.id, subject: _subject.text.trim(), body: _body.text.trim());
       if (mounted) Navigator.pop(context, true);
     } catch (error) { if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', '')); }
     finally { if (mounted) setState(() => _busy = false); }
@@ -91,15 +94,15 @@ class _GenerateOfferDialogState extends State<GenerateOfferDialog> {
         ] : Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
           const Chip(avatar: Icon(Icons.edit_note, size: 18), label: Text('Draft — admin review required')),
           Text('To: ${offer.candidateEmail}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
-          const SizedBox(height: 12), const Text('Subject', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4), SelectableText(offer.subject),
-          const SizedBox(height: 14), const Text('Email body', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4), SelectableText(offer.body),
-          const SizedBox(height: 12), const Text('Check the salary, benefits, dates and wording before sending.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+          const SizedBox(height: 12),
+          TextField(controller: _subject, decoration: const InputDecoration(labelText: 'Email subject', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: _body, minLines: 8, maxLines: 14, decoration: const InputDecoration(labelText: 'Email body — edit before sending', alignLabelWithHint: true, border: OutlineInputBorder())),
+          const SizedBox(height: 12), const Text('Review and edit the subject and message above. Your edited version is saved with the offer when you approve it.', style: TextStyle(fontSize: 12, color: Colors.black54)),
         ]),
       )),
       actions: [
-        if (offer != null) TextButton(onPressed: _busy ? null : () => setState(() { _offer = null; _error = null; }), child: const Text('Edit details')),
+        if (offer != null) TextButton(onPressed: _busy ? null : () => setState(() { _offer = null; _error = null; }), child: const Text('Change offer details')),
         if (offer == null) FilledButton.icon(onPressed: _busy ? null : _generate, icon: _busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome), label: Text(_busy ? 'Generating...' : 'Generate draft'))
         else FilledButton.icon(onPressed: _busy ? null : _approveAndSend, icon: _busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send), label: Text(_busy ? 'Sending...' : 'Approve & send email')),
       ],
