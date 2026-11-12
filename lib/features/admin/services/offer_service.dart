@@ -31,8 +31,8 @@ class OfferService {
     });
     return GeneratedOffer.fromJson(data);
   }
-  Future<void> approveAndSend(String offerId) async {
-    await _request(ApiConfig.sendOfferEndpoint(offerId), const {});
+  Future<void> approveAndSend(String offerId, {required String subject, required String body}) async {
+    await _request(ApiConfig.sendOfferEndpoint(offerId), {'subject': subject, 'body': body});
   }
   Future<Map<String, dynamic>> _request(Uri uri, Map<String, dynamic> body) async {
     final user = _auth.currentUser;
