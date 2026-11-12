@@ -27,6 +27,7 @@ from app.services.resume_embedding_service import chunk_resume_text
 from app.routers.job_embeddings import router as job_embeddings_router
 from app.routers.candidates import router as candidates_router
 from app.routers.matching import router as matching_router
+from app.routers.offers import router as offers_router
 
 # --------------------------------------------------
 # 1. Environment variables
@@ -118,6 +119,7 @@ logging.getLogger("uvicorn.error").info(
 app.include_router(job_embeddings_router)
 app.include_router(matching_router)
 app.include_router(candidates_router)
+app.include_router(offers_router)
 
 
 # --------------------------------------------------
