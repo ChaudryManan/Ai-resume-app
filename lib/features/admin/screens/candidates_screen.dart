@@ -1006,7 +1006,6 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
             (candidate) => _CandidateCard(
               key: ValueKey(candidate.candidateId),
               candidate: candidate,
-              jobId: _selectedJobId!,
               onOpenResume: () => _openResume(candidate),
               onGenerateOffer: () => _generateOffer(candidate),
             ),
@@ -1175,13 +1174,11 @@ class _CandidateCard extends StatefulWidget {
   const _CandidateCard({
     super.key,
     required this.candidate,
-    required this.jobId,
     required this.onOpenResume,
     required this.onGenerateOffer,
   });
 
   final CandidateMatch candidate;
-  final String jobId;
   final Future<void> Function() onOpenResume;
   final Future<void> Function() onGenerateOffer;
 
