@@ -18,3 +18,8 @@ class GeneratedOfferResponse(BaseModel):
     subject: str
     body: str
     status: str
+
+
+class ApproveOfferRequest(BaseModel):
+    subject: str = Field(min_length=1, max_length=250)
+    body: str = Field(min_length=1, max_length=12000)
