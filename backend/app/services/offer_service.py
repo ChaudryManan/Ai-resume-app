@@ -141,24 +141,30 @@ def create_offer(db, admin_uid: str, payload: dict) -> dict:
 
 def approve_and_send_offer(db, offer_id: str, admin_uid: str, subject: str, body: str) -> dict:
     ref = db.collection("job_offers").document(offer_id)
-    snapshot = ref.get()
-    if not snapshot.exists:
-        raise ValueError("Offer was not found.")
-    offer = snapshot.to_dict() or {}
-    if offer.get("status") != "pending_review":
-        raise ValueError("Only offers pending review can be approved and sent.")
+    transaction = db.transaction()
 
-    # Persist the admin-reviewed text before changing status and sending.
-    offer["subject"] = subject.strip()
-    offer["body"] = body.strip()
-    ref.update({
-        "subject": offer["subject"],
-        "body": offer["body"],
-        "status": "sending",
-        "approvedBy": admin_uid,
-        "approvedAt": firestore.SERVER_TIMESTAMP,
-        "updatedAt": firestore.SERVER_TIMESTAMP,
-    })
+    @firestore.transactional
+    def claim_offer(tx):
+        snapshot = ref.get(transaction=tx)
+        if not snapshot.exists:
+            raise ValueError("Offer was not found.")
+        current = snapshot.to_dict() or {}
+        if current.get("status") != "pending_review":
+            raise ValueError("Only offers pending review can be approved and sent.")
+        current["subject"] = subject.strip()
+        current["body"] = body.strip()
+        tx.update(ref, {
+            "subject": current["subject"],
+            "body": current["body"],
+            "status": "sending",
+            "approvedBy": admin_uid,
+            "approvedAt": firestore.SERVER_TIMESTAMP,
+            "updatedAt": firestore.SERVER_TIMESTAMP,
+        })
+        return current
+
+    # The transaction prevents two admin clicks from sending the same offer twice.
+    offer = claim_offer(transaction)
     try:
         sender = send_offer_email(
             offer["candidateEmail"], offer["subject"], offer["body"]
