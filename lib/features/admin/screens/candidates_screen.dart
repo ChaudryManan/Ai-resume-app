@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/admin_service.dart';
 import '../services/job_matching_service.dart';
+import 'generate_offer_dialog.dart';
 
 class CandidatesScreen extends StatefulWidget {
   const CandidatesScreen({super.key, this.requestedJobId});
@@ -240,6 +241,28 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
       if (mounted) {
         setState(() => _starting = false);
       }
+    }
+  }
+
+  Future<void> _generateOffer(CandidateMatch candidate) async {
+    final jobId = _selectedJobId;
+    if (jobId == null) return;
+    if (candidate.email == null || candidate.email!.trim().isEmpty) {
+      _showMessage('This candidate resume does not contain an email address.', isError: true);
+      return;
+    }
+    final sent = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => GenerateOfferDialog(
+        candidateId: candidate.candidateId,
+        candidateName: candidate.displayName,
+        candidateEmail: candidate.email,
+        jobId: jobId,
+      ),
+    );
+    if (sent == true && mounted) {
+      _showMessage('Job offer email sent successfully.');
     }
   }
 
@@ -983,7 +1006,9 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
             (candidate) => _CandidateCard(
               key: ValueKey(candidate.candidateId),
               candidate: candidate,
+              jobId: _selectedJobId!,
               onOpenResume: () => _openResume(candidate),
+              onGenerateOffer: () => _generateOffer(candidate),
             ),
           )
           .toList(),
@@ -1150,11 +1175,15 @@ class _CandidateCard extends StatefulWidget {
   const _CandidateCard({
     super.key,
     required this.candidate,
+    required this.jobId,
     required this.onOpenResume,
+    required this.onGenerateOffer,
   });
 
   final CandidateMatch candidate;
+  final String jobId;
   final Future<void> Function() onOpenResume;
+  final Future<void> Function() onGenerateOffer;
 
   @override
   State<_CandidateCard> createState() => _CandidateCardState();
@@ -1612,6 +1641,23 @@ class _CandidateCardState extends State<_CandidateCard> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: candidate.email == null ? null : widget.onGenerateOffer,
+              icon: const Icon(Icons.mark_email_unread_outlined, size: 18),
+              label: const Text('Generate job offer'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
           if (_expanded) ...[
             const SizedBox(height: 14),
