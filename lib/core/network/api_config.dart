@@ -57,4 +57,7 @@ class ApiConfig {
 
   static Uri candidateResumeEndpoint(String uid) =>
       _resolve('/api/candidates/${Uri.encodeComponent(uid)}/resume');
+
+  // The signed-in candidate's own profile and job-match results.
+  static Uri get myInsightsEndpoint => _resolve('/api/candidates/me/insights');
 }

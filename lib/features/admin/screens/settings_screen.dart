@@ -78,60 +78,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _chooseProfilePicture() async {
-    final user = admin;
-    if (user == null) {
-      _showMessage('Please sign in again.');
+  final user = admin;
+
+  if (user == null) {
+    _showMessage('Please sign in again.');
+    return;
+  }
+
+  try {
+    // Select one image using File Picker 13
+    final file = await FilePicker.pickFile(
+      type: FileType.image,
+    );
+
+    // User cancelled the picker
+    if (file == null) return;
+
+    // Read image bytes
+    final bytes = await file.readAsBytes();
+
+    if (bytes.isEmpty) {
+      _showMessage('Could not read the selected image.');
       return;
     }
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-        withData: true,
-      );
-      if (result == null || result.files.isEmpty) return;
-      final file = result.files.single;
-      final bytes = file.bytes;
-      if (bytes == null || bytes.isEmpty) {
-        _showMessage('Could not read the selected image.');
-        return;
-      }
-      if (bytes.length > 5 * 1024 * 1024) {
-        _showMessage('Please select an image smaller than 5 MB.');
-        return;
-      }
 
-      setState(() => isUploadingPhoto = true);
-      final extension = (file.extension ?? 'jpg').toLowerCase();
-      final contentType = switch (extension) {
-        'png' => 'image/png',
-        'webp' => 'image/webp',
-        'gif' => 'image/gif',
-        _ => 'image/jpeg',
-      };
-      final ref = FirebaseStorage.instance.ref().child('admin_profiles/${user.uid}/profile.$extension');
-      await ref.putData(bytes, SettableMetadata(contentType: contentType));
-      final url = await ref.getDownloadURL();
-
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'profileImageUrl': url,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      await user.updatePhotoURL(url);
-
-      if (!mounted) return;
-      setState(() {
-        profileImageUrl = url;
-        isUploadingPhoto = false;
-      });
-      _showMessage('Profile picture updated successfully.');
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => isUploadingPhoto = false);
-      _showMessage('Unable to upload profile picture: $e');
+    // Maximum image size: 5 MB
+    if (bytes.length > 5 * 1024 * 1024) {
+      _showMessage('Please select an image smaller than 5 MB.');
+      return;
     }
+
+    if (!mounted) return;
+
+    setState(() => isUploadingPhoto = true);
+
+    final extension = (file.extension ?? 'jpg').toLowerCase();
+
+    final contentType = switch (extension) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      _ => 'image/jpeg',
+    };
+
+    // Upload image to Firebase Storage
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('admin_profiles/${user.uid}/profile.$extension');
+
+    await ref.putData(
+      bytes,
+      SettableMetadata(contentType: contentType),
+    );
+
+    // Get uploaded image URL
+    final url = await ref.getDownloadURL();
+
+    // Save URL in Firestore
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .set({
+      'uid': user.uid,
+      'profileImageUrl': url,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    // Update Firebase Auth profile
+    await user.updatePhotoURL(url);
+
+    if (!mounted) return;
+
+    setState(() {
+      profileImageUrl = url;
+      isUploadingPhoto = false;
+    });
+
+    _showMessage('Profile picture updated successfully.');
+  } catch (e) {
+    if (!mounted) return;
+
+    setState(() => isUploadingPhoto = false);
+
+    _showMessage('Failed to upload profile picture: $e');
   }
+}
 
   Future<void> saveProfile() async {
     final user = admin;
