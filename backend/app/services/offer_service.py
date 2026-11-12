@@ -139,7 +139,7 @@ def create_offer(db, admin_uid: str, payload: dict) -> dict:
     }
 
 
-def approve_and_send_offer(db, offer_id: str, admin_uid: str) -> dict:
+def approve_and_send_offer(db, offer_id: str, admin_uid: str, subject: str, body: str) -> dict:
     ref = db.collection("job_offers").document(offer_id)
     snapshot = ref.get()
     if not snapshot.exists:
@@ -148,8 +148,12 @@ def approve_and_send_offer(db, offer_id: str, admin_uid: str) -> dict:
     if offer.get("status") != "pending_review":
         raise ValueError("Only offers pending review can be approved and sent.")
 
-    # Mark as sending first to prevent accidental duplicate clicks/sends.
+    # Persist the admin-reviewed text before changing status and sending.
+    offer["subject"] = subject.strip()
+    offer["body"] = body.strip()
     ref.update({
+        "subject": offer["subject"],
+        "body": offer["body"],
         "status": "sending",
         "approvedBy": admin_uid,
         "approvedAt": firestore.SERVER_TIMESTAMP,
