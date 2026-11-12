@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from firebase_admin import firestore
 
 from app.dependencies.auth import require_admin
-from app.schemas.offer_schema import GenerateOfferRequest
+from app.schemas.offer_schema import GenerateOfferRequest, ApproveOfferRequest
 from app.services.offer_service import create_offer, approve_and_send_offer
 
 logger = logging.getLogger(__name__)
@@ -25,9 +25,9 @@ def generate_offer(payload: GenerateOfferRequest, admin: dict = Depends(require_
 
 
 @router.post("/{offer_id}/approve-and-send")
-def approve_and_send(offer_id: str, admin: dict = Depends(require_admin)):
+def approve_and_send(offer_id: str, payload: ApproveOfferRequest, admin: dict = Depends(require_admin)):
     try:
-        return approve_and_send_offer(firestore.client(), offer_id, admin["uid"])
+        return approve_and_send_offer(firestore.client(), offer_id, admin["uid"], payload.subject, payload.body)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except Exception as error:
